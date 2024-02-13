@@ -26,7 +26,7 @@ namespace bakawatch.BakaSync.Services
         protected override IQueryable<ClassPeriod> LivePeriods => bakaContext.ClassPeriodsLive;
 
         protected override Task FirePeriodChanged(ClassPeriod newPeriod, ClassPeriod oldPeriod) {
-            logger.Log(LogLevel.Information, $"Class Update {newPeriod.Day.Date}:{newPeriod.PeriodIndex} {newPeriod.Class!.Name}:{newPeriod.Group?.Name} - {oldPeriod.Subject?.Name} ({oldPeriod.Type}) => {oldPeriod.Subject?.Name} ({oldPeriod.Type})");
+            logger.Log(LogLevel.Information, $"Class Update {newPeriod.Day.Date}:{newPeriod.PeriodIndex} {newPeriod.Class!.Name}:{newPeriod.Group?.Name} - {oldPeriod.Subject?.Name} ({oldPeriod.Type}) => {newPeriod.Subject?.Name} ({newPeriod.Type})");
             timetableNotificationService.FireClassPeriodChanged(newPeriod, oldPeriod);
             return Task.CompletedTask;
         }
