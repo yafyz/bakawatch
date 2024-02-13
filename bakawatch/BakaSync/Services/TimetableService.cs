@@ -139,9 +139,9 @@ namespace bakawatch.BakaSync.Services
             Periods = periods;
         }
 
-        public T? GetPeriod(DateOnly date, int periodIndex, List<ClassGroup> groups) {
+        public T? GetPeriod(DateOnly date, int periodIndex, HashSet<ClassGroup> groups) {
             var e = GetPeriods(date, periodIndex)
-                .Where(x => x.Groups.SequenceEqual(groups));
+                .Where(x => x.Groups.SetEquals(groups));
             
             // todo: logging
 
@@ -162,7 +162,7 @@ namespace bakawatch.BakaSync.Services
     public interface ITimetable<T> {
         public List<T> Periods { get; }
 
-        public T? GetPeriod(DateOnly date, int periodIndex, List<ClassGroup> group);
+        public T? GetPeriod(DateOnly date, int periodIndex, HashSet<ClassGroup> group);
         public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex);
     }
 }

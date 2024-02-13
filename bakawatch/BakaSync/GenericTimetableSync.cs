@@ -211,7 +211,7 @@ namespace bakawatch.BakaSync
             Room? room = await GetRoom(periodInfo.JsonData.room);
 
             var period = new PeriodBase() {
-                Groups = groups.ToList(),
+                Groups = groups.ToHashSet(),
                 Subject = subject,
                 Room = room,
                 Teacher = teacher
@@ -319,7 +319,7 @@ namespace bakawatch.BakaSync
                 });
         }
 
-        protected async Task<List<ClassGroup>> GetGroups(BakaTimetableParser.PeriodInfo pper) {
+        protected async Task<HashSet<ClassGroup>> GetGroups(BakaTimetableParser.PeriodInfo pper) {
             return await GetClassNameAndGroupName(pper)
                 .ToAsyncEnumerable()
                 .SelectAwait(async x => {
@@ -332,7 +332,7 @@ namespace bakawatch.BakaSync
                 })
                 .Where(x => x != null)
                 .Cast<ClassGroup>()
-                .ToListAsync();
+                .ToHashSetAsync();
         }
     }
 

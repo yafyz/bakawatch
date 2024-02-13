@@ -15,7 +15,7 @@ namespace bakawatch.BakaSync.Entities {
         public Room? Room { get; set; }
         public Teacher? Teacher { get; set; }
 
-        public required ICollection<ClassGroup> Groups { get; set; }
+        public required HashSet<ClassGroup> Groups { get; set; }
     }
 
     public class LivePeriodBase : PeriodBase {

@@ -26,7 +26,7 @@ namespace bakawatch.BakaSync {
                 throw new InvalidDataException("period not same index");
 
             bool areEqual = p1.Type == p2.Type
-                         && p1.Groups.SequenceEqual(p2.Groups)
+                         && p1.Groups.SetEquals(p2.Groups)
                          && p1.Subject?.ID == p2.Subject?.ID
                          && p1.Room?.ID == p2.Room?.ID
                          && p1.Teacher?.ID == p2.Teacher?.ID
