@@ -23,7 +23,6 @@ namespace bakawatch.BakaSync
             services.AddSingleton<TimetableService>();
 
             services.AddHostedService<IdSyncWorker>();
-            //services.AddHostedService<TimetableSyncWorker>();
 
             services.AddTransient<ClassTimetableSync>();
             services.AddHostedService<ClassTimetableSyncWorker>();

@@ -69,9 +69,6 @@ namespace bakawatch.BakaSync.Services
         }
 
         public async Task<Timetable<ClassPeriod>> GetClassTimetable(BakaContext db, TimetableWeek week, ClassBakaId id) {
-            //using var scope = serviceScopeFactory.CreateAsyncScope();
-            //using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
-
             var periods = await week.Days
                 .Where(x => x.Week.ID == week.ID)
                 .ToAsyncEnumerable()
@@ -83,9 +80,6 @@ namespace bakawatch.BakaSync.Services
         }
 
         public async Task<Timetable<TeacherPeriod>> GetTeacherTimetable(BakaContext db, TimetableWeek week, TeacherBakaId id) {
-            //using var scope = serviceScopeFactory.CreateAsyncScope();
-            //using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
-
             var periods = await week.Days
                 .Where(x => x.Week.ID == week.ID)
                 .ToAsyncEnumerable()

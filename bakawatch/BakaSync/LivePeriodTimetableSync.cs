@@ -40,13 +40,6 @@ namespace bakawatch.BakaSync {
 
         protected override async Task<T?> GetHistoryByPeriod(T period)
             => await PeriodHistory
-                // todo: this shouldn't be by class always
-                // will get fucked with teacher sync
-                //.Where(x => x.Class == period.Class
-                //         && x.Day == period.Day
-                //         && x.PeriodIndex == period.PeriodIndex
-                //         && x.Group == period.Group)
-                
                 // id should be the same
                 .Where(x => x.ID == period.ID)
                 .FirstOrDefaultAsync();
