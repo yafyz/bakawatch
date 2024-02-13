@@ -32,8 +32,8 @@ namespace bakawatch.BakaSync.Services
         }
 
         protected override Task FirePeriodDropped(ClassPeriod period) {
-            timetableNotificationService.FireClassPeriodDropped(period);
             logger.Log(LogLevel.Information, $"Class Dropping {period.Day.Date}:{period.PeriodIndex} {period.Class!.Name} - {period.Subject?.Name} ({period.Type})");
+            timetableNotificationService.FireClassPeriodDropped(period);
             return Task.CompletedTask;
         }
 
