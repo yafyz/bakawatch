@@ -27,19 +27,19 @@ namespace bakawatch.BakaSync.Services
 
         protected override Task FirePeriodChanged(TeacherPeriod newPeriod, TeacherPeriod oldPeriod) {
             logger.Log(LogLevel.Information, $"Teacher Update {newPeriod.Day.Date}:{newPeriod.PeriodIndex} {newPeriod.Teacher.FullName} - {oldPeriod.Subject?.Name} ({oldPeriod.Type}) => {newPeriod.Subject?.Name} ({newPeriod.Type})");
-            //timetableNotificationService.FireClassPeriodChanged(newPeriod, oldPeriod);
+            timetableNotificationService.FireTeacherPeriodChanged(newPeriod, oldPeriod);
             return Task.CompletedTask;
         }
 
         protected override Task FirePeriodDropped(TeacherPeriod period) {
-            //timetableNotificationService.FireClassPeriodDropped(period);
             logger.Log(LogLevel.Information, $"Teacher Dropping {period.Day.Date}:{period.PeriodIndex} {period.Teacher.FullName} - {period.Subject?.Name} ({period.Type})");
+            timetableNotificationService.FireTeacherPeriodDropped(period);
             return Task.CompletedTask;
         }
 
         protected override Task FirePeriodNew(TeacherPeriod period) {
             logger.LogInformation($"Teacher New {period.Day.Date}:{period.PeriodIndex} {period.Teacher.FullName} - {period.Subject?.Name} ({period.Type})");
-            //timetableNotificationService.FireClassPeriodAdded(period);
+            timetableNotificationService.FireTeacherPeriodAdded(period);
             return Task.CompletedTask;
         }
 
