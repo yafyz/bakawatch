@@ -322,7 +322,7 @@ namespace bakawatch.BakaSync
         protected async Task<HashSet<ClassGroup>> GetGroups(BakaTimetableParser.PeriodInfo pper) {
             return await GetClassNameAndGroupName(pper)
                 .ToAsyncEnumerable()
-                .SelectAwait(async x => {
+                .SelectAwait<(string?, string?), ClassGroup>(async x => {
                     (var className, var groupName) = x;
                     var @class = await GetClassByName(className);
                     if (@class == null)
@@ -331,7 +331,6 @@ namespace bakawatch.BakaSync
                     return group;
                 })
                 .Where(x => x != null)
-                .Cast<ClassGroup>()
                 .ToHashSetAsync();
         }
     }
