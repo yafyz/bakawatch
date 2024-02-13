@@ -13,7 +13,7 @@ namespace bakawatch.BakaSync.Services
     internal class TeacherTimetableSync(
         BakaContext _bakaContext,
         TimetableNotificationService timetableNotificationService,
-        ILogger<ClassTimetableSync> _logger
+        ILogger<TeacherTimetableSync> _logger
     )
         : LivePeriodTimetableSync<TeacherPeriod>
     {
