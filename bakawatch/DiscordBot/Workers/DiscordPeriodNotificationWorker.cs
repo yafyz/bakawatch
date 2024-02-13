@@ -78,7 +78,7 @@ namespace bakawatch.DiscordBot.Workers {
             }
         }
 
-        private void OnClassPeriodChanged(Period currentPeriod, Period oldPeriod) {
+        private void OnClassPeriodChanged(ClassPeriod currentPeriod, ClassPeriod oldPeriod) {
             Task.Run(async () => {
                 using var scope = serviceScopeFactory.CreateAsyncScope();
                 var periodNotifService = scope.ServiceProvider.GetRequiredService<DiscordPeriodNotificationService>();
@@ -97,7 +97,7 @@ namespace bakawatch.DiscordBot.Workers {
             });
         }
 
-        private void OnClassPeriodDropped(Period period) {
+        private void OnClassPeriodDropped(ClassPeriod period) {
             Task.Run(async () => {
                 using var scope = serviceScopeFactory.CreateAsyncScope();
                 var periodNotifService = scope.ServiceProvider.GetRequiredService<DiscordPeriodNotificationService>();

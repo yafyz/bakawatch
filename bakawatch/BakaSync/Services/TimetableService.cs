@@ -68,94 +68,106 @@ namespace bakawatch.BakaSync.Services
             return week;
         }
 
-        public async Task<Timetable> GetTimetable(TimetableWeek week, ClassBakaId id) {
-            using var scope = serviceScopeFactory.CreateAsyncScope();
-            using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
+        public async Task<Timetable<ClassPeriod>> GetClassTimetable(BakaContext db, TimetableWeek week, ClassBakaId id) {
+            //using var scope = serviceScopeFactory.CreateAsyncScope();
+            //using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
 
             var periods = await week.Days
-                .ToAsyncEnumerable()
                 .Where(x => x.Week.ID == week.ID)
-                .SelectAwait(async x => await GetTimetable(db, x, id))
+                .ToAsyncEnumerable()
+                .SelectAwait(async x => await GetClassTimetable(db, x, id))
                 .SelectMany(x => x.ToAsyncEnumerable())
                 .ToListAsync();
 
-            return new Timetable(periods, id);
+            return new Timetable<ClassPeriod>(periods);
         }
 
-        private async Task<List<Period>> GetTimetable(BakaContext db, TimetableDay day, ClassBakaId classBakaId) {
-            return await db.Periods
+        public async Task<Timetable<TeacherPeriod>> GetTeacherTimetable(BakaContext db, TimetableWeek week, TeacherBakaId id) {
+            //using var scope = serviceScopeFactory.CreateAsyncScope();
+            //using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
+
+            var periods = await week.Days
+                .Where(x => x.Week.ID == week.ID)
+                .ToAsyncEnumerable()
+                .SelectAwait(async x => await GetTeacherTimetable(db, x, id))
+                .SelectMany(x => x.ToAsyncEnumerable())
+                .ToListAsync();
+
+            return new Timetable<TeacherPeriod>(periods);
+        }
+
+        private async Task<List<TeacherPeriod>> GetTeacherTimetable(BakaContext db, TimetableDay day, TeacherBakaId teacherBakaId) {
+            return await db.TeacherPeriodsLive
                 .Where(x => x.Day.ID == day.ID
-                         && x.Class.BakaId == classBakaId)
-                .Include(x => x.Class)
+                         && x.Teacher.BakaId == teacherBakaId)
                 .Include(x => x.Subject)
                 .Include(x => x.Room)
                 .Include(x => x.Teacher)
-                .Include(x => x.Group)
                 .Include(x => x.Day)
+                .Include(x => x.Groups)
+                .ThenInclude(x => x.Class)
                 .ToListAsync();
         }
 
-        public async Task<Period> GetPeriod(BakaContext db, int ID)
-            => await db.Periods
-                .Include(x => x.Class)
-                .Include(x => x.Subject)
-                .Include(x => x.Room)
-                .Include(x => x.Teacher)
-                .Include(x => x.Group)
-                .Include(x => x.Day)
+        private async Task<List<ClassPeriod>> GetClassTimetable(BakaContext db, TimetableDay day, ClassBakaId classBakaId) {
+            return await db.ClassPeriodsLive
+                .Where(x => x.Day.ID == day.ID
+                         && x.Groups.Single().Class.BakaId.Value == classBakaId.Value)
+                .ToListAsync();
+        }
+
+        public async Task<ClassPeriod> GetPeriod(BakaContext db, int ID)
+            => await db.ClassPeriodsLive
                 .FirstAsync(x => x.ID == ID);
 
-        public IQueryable<Period> GetPeriods(BakaContext db, ClassBakaId classId, string? group) {
-            IQueryable<Period> query;
+        public IQueryable<ClassPeriod> GetPeriods(BakaContext db, ClassBakaId classId, string? group) {
+            IQueryable<ClassPeriod> query;
             if (group == null) {
-                query = db.Periods.Where(x => x.Class.BakaId == classId
+                query = db.ClassPeriodsLive.Where(x => x.Class.BakaId == classId
                                            && x.Group == null);
             } else {
-                query = db.Periods.Where(x => x.Class.BakaId == classId
+                query = db.ClassPeriodsLive.Where(x => x.Class.BakaId == classId
                                            && x.Group != null
                                            && x.Group.Name == group);
             }
-            return query
-                .Include(x => x.Class)
-                .Include(x => x.Subject)
-                .Include(x => x.Room)
-                .Include(x => x.Teacher)
-                .Include(x => x.Group)
-                .Include(x => x.Day);
+            return query;
         }
 
     }
 
-    public class Timetable : ITimetable<Period> {
-        public List<Period> Periods { get; }
+    public class Timetable<T> : ITimetable<T>
+        where T : LivePeriodBase
+    {
+        public List<T> Periods { get; }
 
-        public Timetable(List<Period> periods, ClassBakaId classId) {
+        public Timetable(List<T> periods) {
             Periods = periods;
         }
 
-        public Period? GetPeriod(DateOnly date, int periodIndex, ClassGroup? group = null) {
+        public T? GetPeriod(DateOnly date, int periodIndex, List<ClassGroup> groups) {
             var e = GetPeriods(date, periodIndex)
-                .Where(x => x.Group?.ID == group?.ID);
+                .Where(x => x.Groups.SequenceEqual(groups));
             
             // todo: logging
 
             if (e.Count() > 1) {
-                throw new InvalidDataException($"timetable collision, classId={"ClassId"} group={group?.Name} periodIndex={periodIndex}");
+                var classes = groups.Select(x => $"{x.Class.Name}:{x.Name}").Aggregate((t,c) => t+", "+c);
+                throw new InvalidDataException($"timetable collision, classes='{classes}' periodIndex={periodIndex} date={date}");
             }
 
             return e.FirstOrDefault();
         }
 
-        public IEnumerable<Period> GetPeriods(DateOnly date, int periodIndex) {
+        public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex) {
             return Periods.Where(x => x.Day.Date == date
-                                    && x.PeriodIndex == periodIndex);
+                                   && x.PeriodIndex == periodIndex);
         }
     }
 
     public interface ITimetable<T> {
         public List<T> Periods { get; }
 
-        public T? GetPeriod(DateOnly date, int periodIndex, ClassGroup? group = null);
+        public T? GetPeriod(DateOnly date, int periodIndex, List<ClassGroup> group);
         public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex);
     }
 }

@@ -13,12 +13,12 @@ using System.Threading.Tasks;
 using static bakawatch.BakaSync.BakaAPI;
 
 namespace bakawatch.BakaSync.Workers {
-    internal class ClassTimetableSyncWorker(
+    internal class TeacherTimetableSyncWorker(
         IdSyncService idSyncService,
         TimetableService timetableService,
         TimetableNotificationService timetableNotificationService,
         BakaTimetableParser bakaTimetableParser,
-        ILogger<ClassTimetableSyncWorker> logger,
+        ILogger<TeacherTimetableSyncWorker> logger,
         IServiceScopeFactory serviceScopeFactory
     )
         : SyncWorkerBase
@@ -30,21 +30,21 @@ namespace bakawatch.BakaSync.Workers {
         private readonly ILogger logger = logger;
         private readonly IServiceScopeFactory serviceScopeFactory = serviceScopeFactory;
 
-        private Dictionary<ClassBakaId, List<CollisionLog>> collisionMap = new();
+        private Dictionary<TeacherBakaId, List<CollisionLog>> collisionMap = new();
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
             await idSyncService.IsInitialized;
 
-            logger.Log(LogLevel.Information, $"Starting {nameof(ClassTimetableSyncWorker)}");
+            logger.Log(LogLevel.Information, $"Starting {nameof(TeacherTimetableSyncWorker)}");
 
             await Worker(stoppingToken);
         }
 
-        private async Task DoParse(BakaContext db, ClassTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
-            var ptm = await bakaTimetableParser.Get(sync.Class.BakaId.Value, BakaTimetableParser.Who.Class, when);
-            var tm = await timetableService.GetClassTimetable(db, week, sync.Class.BakaId);
+        private async Task DoParse(BakaContext db, TeacherTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
+            var ptm = await bakaTimetableParser.Get(sync.Teacher.BakaId.Value, BakaTimetableParser.Who.Teacher, when);
+            var tm = await timetableService.GetTeacherTimetable(db, week, sync.Teacher.BakaId);
 
-            await sync.ParseAndUpdateTimetable(ptm, tm, collisionMap[sync.Class.BakaId], ct);
+            await sync.ParseAndUpdateTimetable(ptm, tm, collisionMap[sync.Teacher.BakaId], ct);
         }
 
         private async Task Worker(CancellationToken ct) {
@@ -52,26 +52,26 @@ namespace bakawatch.BakaSync.Workers {
                 using var scope = serviceScopeFactory.CreateAsyncScope();
                 using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
 
-                Class[] classes = await db.Classes.ToArrayAsync();
+                Teacher[] teachers = await db.Teachers.ToArrayAsync();
 
                 TimetableWeek week = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now));
                 TimetableWeek nextWeek = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now).AddDays(7));
 
                 try {
-                    foreach (var @class in classes) {
+                    foreach (var teacher in teachers) {
                         await WeekEdgeWait(ct);
                         if (ct.IsCancellationRequested) break;
 
-                        if (!collisionMap.ContainsKey(@class.BakaId)) {
-                            collisionMap.Add(@class.BakaId, []);
+                        if (!collisionMap.ContainsKey(teacher.BakaId)) {
+                            collisionMap.Add(teacher.BakaId, []);
                         }
 
-                        var sync = scope.ServiceProvider.GetRequiredService<ClassTimetableSync>();
-                        sync.Class = @class;
+                        var sync = scope.ServiceProvider.GetRequiredService<TeacherTimetableSync>();
+                        sync.Teacher = teacher;
 
                         await DoParse(db, sync, week, BakaTimetableParser.When.Actual, ct);
                         await DoParse(db, sync, nextWeek, BakaTimetableParser.When.Next, ct);
-                        
+
                         await db.SaveChangesAsync(CancellationToken.None);
                     }
                 } catch (BakaHttpError ex) {

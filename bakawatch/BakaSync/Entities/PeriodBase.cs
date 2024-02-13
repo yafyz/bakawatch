@@ -1,30 +1,24 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace bakawatch.BakaSync.Entities {
-
-    // will get changed in the future probably
-    // to accommodate for permanent timetables
-    // and timetables of teachers
-
-    public abstract class PeriodBase {
-        // it is not wise to directly reference
-        // periods by id as they may get removed
-        // from db at any point instead of
-        // getting overwritten
+    public class PeriodBase {
         public int ID { get; set; }
 
-        public Class? Class { get; set; }
         public Subject? Subject { get; set; }
         public Room? Room { get; set; }
         public Teacher? Teacher { get; set; }
-        public ClassGroup? Group { get; set; }
+
+        public required ICollection<ClassGroup> Groups { get; set; }
     }
 
-    public abstract class LivePeriodBase : PeriodBase {
+    public class LivePeriodBase : PeriodBase {
         public required PeriodType Type { get; set; }
 
         // may be set if PeriodType=Normal

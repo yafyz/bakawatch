@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace bakawatch.BakaSync.Entities {
-    [Obsolete("bruh", true)]
-    public class PeriodHistory : LivePeriodBase {}
+    public class TeacherPeriod : LivePeriodBase {
+        public new Teacher Teacher { get => base.Teacher!; set => base.Teacher = value; }
+    }
 }

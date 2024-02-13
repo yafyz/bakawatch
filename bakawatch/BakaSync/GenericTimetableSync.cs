@@ -1,5 +1,4 @@
-﻿#if true
-using bakawatch.BakaSync.Entities;
+﻿using bakawatch.BakaSync.Entities;
 using bakawatch.BakaSync.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,18 +6,19 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Reflection.Metadata.Ecma335;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace bakawatch.BakaSync
 {
-    internal abstract class GenericTimetableSync<PERIOD, PERIODHISTORY>(
-        BakaContext bakaContext,
-        ILogger logger
-    ) {
-        //private readonly BakaContext bakaContext = bakaContext;
-        //private readonly ILogger logger = logger;
+    internal abstract class GenericTimetableSync<PERIOD, PERIODHISTORY>
+    {
+        protected abstract BakaContext bakaContext { get; }
+        protected abstract ILogger logger { get; }
 
         protected abstract Task<PERIOD> ParseIntoPeriod(BakaTimetableParser.PeriodInfo periodInfo);
         protected abstract Task<PERIOD?> GetPeriodByPeriod(PERIOD period);
@@ -29,9 +29,8 @@ namespace bakawatch.BakaSync
         protected abstract Task<PERIODHISTORY?> GetHistoryByPeriod(PERIOD period);
         protected abstract Task<PERIODHISTORY> MakeIntoHistory(PERIOD period);
 
-        protected abstract Task<bool> ComparePeriods(PERIOD e1, PERIOD e2);
+        protected abstract Task<bool> ComparePeriods(PERIOD p1, PERIOD p2);
 
-        protected abstract Task RemovePeriod(PERIOD entity);
         protected abstract Task InsertPeriod(PERIOD newEntity);
 
         protected abstract Task FirePeriodNew(PERIOD period);
@@ -66,18 +65,22 @@ namespace bakawatch.BakaSync
                     // this period is currently colliding with another one
                     // skip it until the collision is fixed
                     continue;
-
-                (var @class, var group) = await GetClassAndGroup(parsedPeriod);
-
-                var period = currentTimetable.GetPeriod(parsedPeriod.Date, parsedPeriod.PeriodIndex, group);
-                var newPeriod = await ParseIntoPeriod(parsedPeriod);
                 
+                var groups = await GetGroups(parsedPeriod);
+                var areDefaultGroups = groups.All(x => x.IsDefaultGroup);
+
+                if (!areDefaultGroups && groups.Any(x => x.IsDefaultGroup))
+                    throw new NotImplementedException("this may not be good");
+
+                var period = currentTimetable.GetPeriod(parsedPeriod.Date, parsedPeriod.PeriodIndex, groups);
+                var newPeriod = await ParseIntoPeriod(parsedPeriod);
+
                 if (period == null) {
                     // new period never seen before
 
                     List<PERIODHISTORY>? histories = null;
 
-                    if (group == null) {
+                    if (areDefaultGroups) {
                         // split => merge
 
                         // i lied, we may have actually seen em,
@@ -98,7 +101,7 @@ namespace bakawatch.BakaSync
                         }
                     } else {
                         // merge => split
-                        PERIOD? maybe_period = currentTimetable.GetPeriod(parsedPeriod.Date, parsedPeriod.PeriodIndex);
+                        PERIOD? maybe_period = currentTimetable.GetPeriod(parsedPeriod.Date, parsedPeriod.PeriodIndex, groups);
 
                         if (maybe_period != null) {
                             checkedPeriods.Add(maybe_period);
@@ -179,27 +182,9 @@ namespace bakawatch.BakaSync
                                   && x.PeriodIndex == pper.PeriodIndex
                                   && x.Group == pper.JsonData.group);
 
+            // todo: better logging
 
-            var isColliding = collisions.Any();
-
-            // bias for absent periods as they often have collisions with other
-            // periods in teacher timetables before the other periods get
-            // a substitution
-            if (isColliding && ParsePeriodType(pper) == PeriodType.Absent) {
-                var count = collisions
-                    .Where(x => ParsePeriodType(x) == PeriodType.Absent)
-                    .Count();
-
-                // look anything is possible on this website,
-                // double absent periods can go blow themselves up
-                if (count == 1) {
-                    isColliding = false;
-                }
-            }
-
-            // todo: logging
-
-            if (isColliding) {
+            if (collisions.Any()) {
                 if (collisionLog == null) {
                     logger.LogWarning($"timetable collision, className={"@class.Name"} group={pper.JsonData.group} date={pper.Date} periodIndex={pper.PeriodIndex}");
                     collisionLogs.Add(new(pper.Date, pper.PeriodIndex, pper.JsonData.group));
@@ -214,6 +199,33 @@ namespace bakawatch.BakaSync
             return false;
         }
 
+        protected virtual async Task<PeriodBase> ParseIntoBasePeriod(BakaTimetableParser.PeriodInfo periodInfo) {
+            var groups = await GetGroups(periodInfo);
+
+            Subject? subject = null;
+            // periodInfo.SubjectShortName may be set even if its not actually a subject but an absence
+            if (periodInfo.JsonData.type == "atom")
+                subject = await GetSubject(periodInfo.SubjectShortName, periodInfo.SubjectFullName);
+
+            Teacher? teacher = await GetTeacher(periodInfo.TeacherFullNameNoDegree);
+            Room? room = await GetRoom(periodInfo.JsonData.room);
+
+            var period = new PeriodBase() {
+                Groups = groups.ToList(),
+                Subject = subject,
+                Room = room,
+                Teacher = teacher
+            };
+
+            return period;
+        }
+
+        protected virtual async Task<Teacher?> GetTeacher(string? teacherName) {
+            Teacher? teacher = null;
+            if (teacherName != null)
+                teacher = await bakaContext.Teachers.FirstAsync(x => x.FullName == teacherName);
+            return teacher;
+        }
 
         protected async Task<Subject?> GetSubject(string? subjectShortName, string? subjectName) {
             if (string.IsNullOrEmpty(subjectShortName) && string.IsNullOrEmpty(subjectName))
@@ -261,47 +273,66 @@ namespace bakawatch.BakaSync
             return room;
         }
 
-        protected async Task<ClassGroup?> GetGroup(Class @class, string? groupName) {
-            if (string.IsNullOrEmpty(groupName))
-                return null;
-
-            var group = await bakaContext.Groups.FirstOrDefaultAsync(x => x.Name == groupName
-                                                                  && x.Class.ID == @class.ID);
+        protected async Task<ClassGroup> GetGroup(Class @class, string? groupName) {
+            var group = await bakaContext.Groups
+                .FirstOrDefaultAsync(x => (groupName != null
+                                            ? x.Name == groupName
+                                            : x.IsDefaultGroup)
+                                       && x.Class.ID == @class.ID);
 
             if (group == null) {
                 group = new ClassGroup() {
                     Class = @class,
-                    Name = groupName,
+                    Name = groupName ?? "default",
+                    IsDefaultGroup = groupName == null
                 };
                 bakaContext.Groups.Add(group);
-                logger.Log(LogLevel.Information, $"Creating group {group.Name} for class {@class.Name}");
+                logger.Log(LogLevel.Information, $"Creating group {group.Name ?? "default"} for class {@class.Name}");
                 await bakaContext.SaveChangesAsync();
             }
 
             return group;
         }
 
-        protected async Task<Class> GetClassByName(string? className) {
+        protected virtual async Task<Class> GetClassByName(string? className) {
             if (className == null) {
-                throw new ArgumentException("className cannot be null");
+                return null;
             }
             return await bakaContext.Classes.FirstAsync(x => x.Name == className);
         }
 
-        protected (string?, string?) GetClassNameAndGroupName(BakaTimetableParser.PeriodInfo pper) {
-            return pper.JsonData.group.Split(" ") switch {
-                [var className, "celá"] => (className, null),
-                [var className, var groupName] => (className, groupName),
-                [var groupName] => (null, groupName),
-                _ => throw new Exception($"invalid group data: {pper.JsonData.group}")
-            };
+        protected IEnumerable<(string?, string?)> GetClassNameAndGroupName(BakaTimetableParser.PeriodInfo pper) {
+            if (pper.JsonData.group == null) {
+                //todo: teacher shit
+                return [(null, null)];
+            }
+            
+            return pper.JsonData.group
+                .Split(',')
+                .Select(x => x.Trim())
+                .Select(x => x.Split(' '))
+                .Select<string[], (string?, string?)>(x => x switch {
+                    [var className, "celá"] => (className, null),
+                    [var className, var groupName] => (className, groupName),
+                    [var groupName] => (null, groupName),
+                    _ => throw new Exception($"invalid group data: {pper.JsonData.group}")
+                });
         }
 
-        protected virtual async Task<(Class, ClassGroup?)> GetClassAndGroup(BakaTimetableParser.PeriodInfo pper) {
-            (var className, var groupName) = GetClassNameAndGroupName(pper);
-            var @class = await GetClassByName(className);
-            var group = await GetGroup(@class, groupName);
-            return (@class, group);
+        protected async Task<List<ClassGroup>> GetGroups(BakaTimetableParser.PeriodInfo pper) {
+            return await GetClassNameAndGroupName(pper)
+                .ToAsyncEnumerable()
+                .SelectAwait(async x => {
+                    (var className, var groupName) = x;
+                    var @class = await GetClassByName(className);
+                    if (@class == null)
+                        return null;
+                    ClassGroup group = await GetGroup(@class, groupName);
+                    return group;
+                })
+                .Where(x => x != null)
+                .Cast<ClassGroup>()
+                .ToListAsync();
         }
     }
 
@@ -311,4 +342,3 @@ namespace bakawatch.BakaSync
         public string Group = Group;
     };
 }
-#endif

@@ -49,7 +49,7 @@ namespace bakawatch.DiscordBot.Services
             await UpdateReminderMessage(reminder, true);
         }
 
-        public async Task<Period?> GetReminderPeriod(SubjectReminder reminder) {
+        public async Task<ClassPeriod?> GetReminderPeriod(SubjectReminder reminder) {
             var p = await timetableService.GetPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
                 .Where(x => x.Day.Date >= reminder.Date)
                 .Where(x => x.Subject != null
