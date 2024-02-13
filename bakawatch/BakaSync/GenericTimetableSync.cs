@@ -139,9 +139,9 @@ namespace bakawatch.BakaSync
                         continue;
 
                     var history = await MakeIntoHistory(period);
-                    await InsertPeriod(period);
+                    await InsertPeriod(newPeriod);
 
-                    await FirePeriodChanged(period, history);
+                    await FirePeriodChanged(newPeriod, history);
                 }
             }
 
