@@ -1,4 +1,5 @@
 ﻿using AngleSharp.Html.Parser;
+using bakawatch.BakaSync.Entities;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
@@ -106,6 +107,22 @@ namespace bakawatch.BakaSync
 
                     if (p.JsonData.group == "")
                         p.JsonData.group = null;
+
+                    if (when == When.Permanent) {
+                        // format: "L/S: SUBJECT"
+                        if (p.SubjectShortName?.Contains(':') == true) {
+                            var split = p.SubjectShortName
+                                .Split(':')
+                                .Select(x => x.Trim())
+                                .ToArray();
+
+                            (p.OddOrEvenWeek, p.SubjectShortName) = split switch {
+                                ["L", var subjectName] => (OddEven.Odd, subjectName),
+                                ["S", var subjectName] => (OddEven.Even, subjectName),
+                                _ => throw new InvalidDataException($"invalid data '{p.SubjectShortName}'")
+                            };
+                        }
+                    }
 
                     // hasAbsent is true when there is an absence without
                     // a substituted period, or atleast that's one of the cases
@@ -239,6 +256,8 @@ namespace bakawatch.BakaSync
         {
             public DateOnly Date;
             public int PeriodIndex;
+
+            public OddEven? OddOrEvenWeek;
 
             public PeriodInfoJSON JsonData;
             public string? SubjectShortName;
