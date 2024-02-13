@@ -117,12 +117,13 @@ namespace bakawatch.BakaSync.Services
         public IQueryable<ClassPeriod> GetPeriods(BakaContext db, ClassBakaId classId, string? group) {
             IQueryable<ClassPeriod> query;
             if (group == null) {
-                query = db.ClassPeriodsLive.Where(x => x.Class.BakaId == classId
-                                           && x.Group == null);
+                query = db.ClassPeriodsLive
+                    .Where(x => x.Groups.Single().Class.BakaId.Value == classId.Value
+                             && x.Groups.Single().IsDefaultGroup);
             } else {
-                query = db.ClassPeriodsLive.Where(x => x.Class.BakaId == classId
-                                           && x.Group != null
-                                           && x.Group.Name == group);
+                query = db.ClassPeriodsLive
+                    .Where(x => x.Groups.Single().Class.BakaId.Value == classId.Value
+                             && x.Groups.Single().Name == group);
             }
             return query;
         }
