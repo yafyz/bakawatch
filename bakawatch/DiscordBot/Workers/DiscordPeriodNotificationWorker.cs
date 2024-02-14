@@ -84,12 +84,12 @@ namespace bakawatch.DiscordBot.Workers {
                 var periodNotifService = scope.ServiceProvider.GetRequiredService<DiscordPeriodNotificationService>();
                 var channelService = scope.ServiceProvider.GetRequiredService<DiscordLocalService>();
                 
-                var group = currentPeriod.Group ?? oldPeriod.Group;
+                var group = currentPeriod.Group;
 
-                await foreach (var channelNotif in periodNotifService.GetSubscriptionsFor(oldPeriod.Class.BakaId, group?.Name)) {
+                await foreach (var channelNotif in periodNotifService.GetSubscriptionsFor(oldPeriod.Class.BakaId, group.Name)) {
                     var channel = (ITextChannel)channelNotif.Channel.Resolve(discordClient);
 
-                    string? grouptext = group != null ? $":{group.Name}" : null;
+                    string? grouptext = group.Name != ClassGroup.DefaultGroupName ? $":{group.Name}" : null;
 
                     var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {currentPeriod.Class.Name}{grouptext} | {FormatPeriod(oldPeriod)} => {FormatPeriod(currentPeriod)}";
                     messageBuffer.Add((channel, msg));
@@ -103,10 +103,10 @@ namespace bakawatch.DiscordBot.Workers {
                 var periodNotifService = scope.ServiceProvider.GetRequiredService<DiscordPeriodNotificationService>();
                 var channelService = scope.ServiceProvider.GetRequiredService<DiscordLocalService>();
 
-                await foreach (var channelNotif in periodNotifService.GetSubscriptionsFor(period.Class.BakaId, period.Group?.Name)) {
+                await foreach (var channelNotif in periodNotifService.GetSubscriptionsFor(period.Class.BakaId, period.Group.Name)) {
                     var channel = (ITextChannel)channelNotif.Channel.Resolve(discordClient);
 
-                    string? grouptext = period.Group != null ? $":{period.Group.Name}" : null;
+                    string? grouptext = period.Group.Name != ClassGroup.DefaultGroupName ? $":{period.Group.Name}" : null;
 
                     var msg = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(period)} => Dropped";
                     messageBuffer.Add((channel, msg));

@@ -12,14 +12,14 @@ namespace bakawatch.DiscordBot.Services {
     public class DiscordPeriodNotificationService(DiscordContext discordContext, DiscordLocalService discordChannelService) {
         public async Task<bool> Subscribe(Discord.ITextChannel channel, ClassBakaId classId, string? groupName) {
             var exists = await discordContext.PeriodChangeNotifications
-                .AnyAsync(x => x.ClassBakaId == classId && x.GroupName == groupName);
+                .AnyAsync(x => x.ClassBakaId == classId && x.GroupName == (groupName ?? ClassGroup.DefaultGroupName));
             if (exists)
                 return false;
 
             discordContext.PeriodChangeNotifications.Add(new PeriodChangeNotification {
                 Channel = await discordChannelService.GetChannel(channel.Id, channel.GuildId),
                 ClassBakaId = classId,
-                GroupName = groupName
+                GroupName = groupName ?? ClassGroup.DefaultGroupName
             });
 
             await discordContext.SaveChangesAsync();
@@ -29,7 +29,8 @@ namespace bakawatch.DiscordBot.Services {
 
         public async Task<bool> Unsubscribe(Discord.ITextChannel channel, ClassBakaId classId, string? groupName) {
             var n = await discordContext.PeriodChangeNotifications
-                .FirstOrDefaultAsync(x => x.ClassBakaId == classId && x.GroupName == groupName);
+                .Where(x => x.Channel.ChannelSnowflake == channel.Id)
+                .FirstOrDefaultAsync(x => x.ClassBakaId == classId && x.GroupName == (groupName ?? ClassGroup.DefaultGroupName));
             if (n == null)
                 return false;
 
@@ -40,7 +41,7 @@ namespace bakawatch.DiscordBot.Services {
 
         public IAsyncEnumerable<PeriodChangeNotification>GetSubscriptionsFor(ClassBakaId classId, string? groupName) {
             return discordContext.PeriodChangeNotifications
-                .Where(x => x.ClassBakaId == classId && x.GroupName == groupName)
+                .Where(x => x.ClassBakaId == classId && x.GroupName == (groupName ?? ClassGroup.DefaultGroupName))
                 .Include(x => x.Channel)
                 .AsAsyncEnumerable();
         }
