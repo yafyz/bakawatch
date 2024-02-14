@@ -12,7 +12,7 @@ namespace bakawatch.BakaSync.Entities
             get => base.Groups.Single().Class;
         }
 
-        public ClassGroup? Group {
+        public ClassGroup Group {
             get => base.Groups.Single();
         }
     }
