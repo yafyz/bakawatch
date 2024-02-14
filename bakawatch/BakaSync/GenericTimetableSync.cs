@@ -283,11 +283,11 @@ namespace bakawatch.BakaSync
             if (group == null) {
                 group = new ClassGroup() {
                     Class = @class,
-                    Name = groupName ?? "default",
+                    Name = groupName ?? ClassGroup.DefaultGroupName,
                     IsDefaultGroup = groupName == null
                 };
                 bakaContext.Groups.Add(group);
-                logger.Log(LogLevel.Information, $"Creating group {group.Name ?? "default"} for class {@class.Name}");
+                logger.Log(LogLevel.Information, $"Creating group {group.Name ?? ClassGroup.DefaultGroupName} for class {@class.Name}");
                 await bakaContext.SaveChangesAsync();
             }
 
