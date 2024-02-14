@@ -7,5 +7,6 @@ using System.Threading.Tasks;
 namespace bakawatch.BakaSync.Entities {
     public class TeacherPeriod : LivePeriodBase {
         public new Teacher Teacher { get => base.Teacher!; set => base.Teacher = value; }
+        public bool HasAbsent { get; set; }
     }
 }

@@ -52,6 +52,17 @@ namespace bakawatch.BakaSync.Services
             return Task.FromResult<Teacher?>(Teacher);
         }
 
+        protected override async Task<TeacherPeriod> ParseIntoPeriod(BakaTimetableParser.PeriodInfo periodInfo) {
+            var p = await base.ParseIntoPeriod(periodInfo);
+            p.HasAbsent = periodInfo.JsonData.hasAbsent;
+            return p;
+        }
+
+        protected override async Task<bool> ComparePeriods(TeacherPeriod p1, TeacherPeriod p2) {
+            return await base.ComparePeriods(p1, p2)
+                && p1.HasAbsent == p2.HasAbsent;
+        }
+
         protected override Task<TeacherPeriod> MakeLivePeriod(LivePeriodBase genericPeriodInfo)
             => Task.FromResult(new TeacherPeriod() {
                 Type = genericPeriodInfo.Type,
