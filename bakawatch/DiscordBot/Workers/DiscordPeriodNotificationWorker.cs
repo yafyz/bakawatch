@@ -32,6 +32,8 @@ namespace bakawatch.DiscordBot.Workers {
             messageBuffer = new();
             timetableNotificationService.OnClassPeriodChanged += OnClassPeriodChanged;
             timetableNotificationService.OnClassPeriodDropped += OnClassPeriodDropped;
+
+            timetableNotificationService.OnTeacherPeriodChanged += OnTeacherPeriodChanged;
             
             logger.Log(LogLevel.Information, $"{nameof(DiscordPeriodNotificationWorker)} started");
 
@@ -41,6 +43,24 @@ namespace bakawatch.DiscordBot.Workers {
             }
 
             logger.Log(LogLevel.Information, $"{nameof(DiscordPeriodNotificationWorker)} stopped");
+        }
+
+        private void OnTeacherPeriodChanged(TeacherPeriod currentPeriod, TeacherPeriod oldPeriod) {
+            if (currentPeriod.HasAbsent && !oldPeriod.HasAbsent && currentPeriod.Groups.Count != 0) {
+                Task.Run(async () => {
+                    using var scope = serviceScopeFactory.CreateAsyncScope();
+                    var periodNotifService = scope.ServiceProvider.GetRequiredService<DiscordPeriodNotificationService>();
+                    var channelService = scope.ServiceProvider.GetRequiredService<DiscordLocalService>();
+                    
+                    foreach (var group in currentPeriod.Groups) {
+                        await foreach(var sub in periodNotifService.GetSubscriptionsFor(group)) {
+                            string? grouptext = group.Name != ClassGroup.DefaultGroupName ? $":{group.Name}" : null;
+                            var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {group.Class.Name}{grouptext} | Absent collision {FormatPeriod(currentPeriod)}";
+                            messageBuffer.Add(((ITextChannel)sub.Channel.Resolve(discordClient), msg));
+                        }
+                    }
+                });
+            }
         }
 
         private async Task MessageWriter() {

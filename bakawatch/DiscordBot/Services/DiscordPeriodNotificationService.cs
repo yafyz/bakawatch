@@ -45,5 +45,8 @@ namespace bakawatch.DiscordBot.Services {
                 .Include(x => x.Channel)
                 .AsAsyncEnumerable();
         }
+
+        public IAsyncEnumerable<PeriodChangeNotification> GetSubscriptionsFor(ClassGroup group)
+            => GetSubscriptionsFor(group.Class.BakaId, group.Name);
     }
 }
