@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Channels;
+using bakawatch.BakaSync;
 
 namespace bakawatch.DiscordBot.Workers {
     internal class DiscordPeriodNotificationWorker(
@@ -55,7 +56,7 @@ namespace bakawatch.DiscordBot.Workers {
                     foreach (var group in currentPeriod.Groups) {
                         await foreach(var sub in periodNotifService.GetSubscriptionsFor(group)) {
                             string? grouptext = group.Name != ClassGroup.DefaultGroupName ? $":{group.Name}" : null;
-                            var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {group.Class.Name}{grouptext} | Absent collision {FormatPeriod(currentPeriod)}";
+                            var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {group.Class.Name}{grouptext} | Absent collision {FormatPeriod(currentPeriod.Period)}";
                             messageBuffer.Add(((ITextChannel)sub.Channel.Resolve(discordClient), msg));
                         }
                     }
@@ -111,7 +112,7 @@ namespace bakawatch.DiscordBot.Workers {
 
                     string? grouptext = group.Name != ClassGroup.DefaultGroupName ? $":{group.Name}" : null;
 
-                    var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {currentPeriod.Class.Name}{grouptext} | {FormatPeriod(oldPeriod)} => {FormatPeriod(currentPeriod)}";
+                    var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {currentPeriod.Class.Name}{grouptext} | {FormatPeriod(oldPeriod.Period)} => {FormatPeriod(currentPeriod.Period)}";
                     messageBuffer.Add((channel, msg));
                 }
             });
@@ -128,13 +129,13 @@ namespace bakawatch.DiscordBot.Workers {
 
                     string? grouptext = period.Group.Name != ClassGroup.DefaultGroupName ? $":{period.Group.Name}" : null;
 
-                    var msg = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(period)} => Dropped";
+                    var msg = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(period.Period)} => Dropped";
                     messageBuffer.Add((channel, msg));
                 }
             });
         }
 
-        private string FormatPeriod(LivePeriodBase period)
+        private string FormatPeriod(LivePeriod period)
             => period.Type switch {
                 PeriodType.Normal => $"{period.Subject?.ShortName} ({period.Teacher?.FullName}) {(period.ChangeInfo != null ? $"({period.ChangeInfo})" : null)}",
                 PeriodType.Removed => $"Removed ({period.RemovedInfo})",

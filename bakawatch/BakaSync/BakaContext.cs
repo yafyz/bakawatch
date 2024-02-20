@@ -18,23 +18,15 @@ namespace bakawatch.BakaSync
         public DbSet<ClassGroup> Groups { get; set; }
         public DbSet<Subject> Subjects { get; set; }
 
-        public DbSet<ClassPeriod> ClassPeriods { get; set; }
-        private IQueryable<ClassPeriod> _ClassPeriods { get =>
-                ClassPeriods
-                    .Include(x => x.Subject)
-                    .Include(x => x.Room)
-                    .Include(x => x.Teacher)
-                    .Include(x => x.Day)
-                    .Include(x => x.Groups)
-                    .ThenInclude(x => x.Class);
-        }
-
-        public IQueryable<ClassPeriod> ClassPeriodsLive { get => _ClassPeriods.Where(x => !x.IsHistory); }
-        public IQueryable<ClassPeriod> ClassPeriodHistory { get => _ClassPeriods.Where(x => x.IsHistory); }
-
-        public DbSet<TeacherPeriod> TeacherPeriods { get; set; }
-        public IQueryable<TeacherPeriod> TeacherPeriodsLive { get => TeacherPeriods.Where(x => !x.IsHistory); }
-        public IQueryable<TeacherPeriod> TeacherPeriodHistory { get => TeacherPeriods.Where(x => x.IsHistory); }
+        public DbSet<LivePeriod> LivePeriods { get; set; }
+        public IQueryable<LivePeriod> LivePeriodsWithIncludes
+            => LivePeriods
+                .Include(x => x.Subject)
+                .Include(x => x.Room)
+                .Include(x => x.Teacher)
+                .Include(x => x.Day)
+                .Include(x => x.Groups)
+                .ThenInclude(x => x.Class);
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

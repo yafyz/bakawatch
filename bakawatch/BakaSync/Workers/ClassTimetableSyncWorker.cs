@@ -42,7 +42,7 @@ namespace bakawatch.BakaSync.Workers {
 
         private async Task DoParse(BakaContext db, ClassTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
             var ptm = await bakaTimetableParser.Get(sync.Class.BakaId.Value, BakaTimetableParser.Who.Class, when);
-            var tm = await timetableService.GetClassTimetable(db, week, sync.Class.BakaId);
+            var tm = await timetableService.GetClassTimetable(db, week, sync.Class);
 
             await sync.ParseAndUpdateTimetable(ptm, tm, collisionMap[sync.Class.BakaId], ct);
         }
