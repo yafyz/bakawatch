@@ -20,7 +20,8 @@ namespace bakawatch.DiscordBot.Services
         BakaContext bakaContext,
         DiscordSocketClient discordClient,
         DiscordLocalService discordLocalService,
-        TimetableService timetableService
+        TimetableService timetableService,
+        SyncOptimizationService syncOptimizationService
     ) {
         public async Task AddReminder(
             Class @class,
@@ -47,6 +48,7 @@ namespace bakawatch.DiscordBot.Services
 
             discordContext.SubjectReminders.Add(reminder);
             await UpdateReminderMessage(reminder, true);
+            await syncOptimizationService.Add(@class.BakaId);
         }
 
         public async Task<ClassPeriod?> GetReminderPeriod(SubjectReminder reminder) {

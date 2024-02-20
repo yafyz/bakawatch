@@ -19,6 +19,7 @@ namespace bakawatch.BakaSync.Workers {
         TimetableNotificationService timetableNotificationService,
         BakaTimetableParser bakaTimetableParser,
         ILogger<TeacherTimetableSyncWorker> logger,
+        SyncOptimizationService syncOptimizationService,
         IServiceScopeFactory serviceScopeFactory
     )
         : SyncWorkerBase
@@ -59,6 +60,9 @@ namespace bakawatch.BakaSync.Workers {
 
                 try {
                     foreach (var teacher in teachers) {
+                        if (!await syncOptimizationService.ShouldCheck(teacher.BakaId))
+                            continue;
+
                         await WeekEdgeWait(ct);
                         if (ct.IsCancellationRequested) break;
 

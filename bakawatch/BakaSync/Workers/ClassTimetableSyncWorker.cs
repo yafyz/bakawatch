@@ -19,6 +19,7 @@ namespace bakawatch.BakaSync.Workers {
         TimetableNotificationService timetableNotificationService,
         BakaTimetableParser bakaTimetableParser,
         ILogger<ClassTimetableSyncWorker> logger,
+        SyncOptimizationService syncOptimizationService,
         IServiceScopeFactory serviceScopeFactory
     )
         : SyncWorkerBase
@@ -57,8 +58,13 @@ namespace bakawatch.BakaSync.Workers {
                 TimetableWeek week = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now));
                 TimetableWeek nextWeek = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now).AddDays(7));
 
+                var optSyncPending = syncOptimizationService.TeacherClassSyncPending;
+
                 try {
                     foreach (var @class in classes) {
+                        if (!await syncOptimizationService.ShouldCheck(@class.BakaId))
+                            continue;
+
                         await WeekEdgeWait(ct);
                         if (ct.IsCancellationRequested) break;
 
@@ -79,6 +85,9 @@ namespace bakawatch.BakaSync.Workers {
                 } catch (BakaTimetableParser.BakaParseErrorNoTimetable ex) {
                     logger.LogError(ex, "bad response from baka");
                 }
+
+                if (optSyncPending)
+                    await syncOptimizationService.OnClassesSynced();
 
                 await TakeBreak(ct);
             }
