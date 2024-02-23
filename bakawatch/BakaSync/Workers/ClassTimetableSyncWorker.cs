@@ -48,6 +48,7 @@ namespace bakawatch.BakaSync.Workers {
         }
 
         private async Task Worker(CancellationToken ct) {
+        outer:
             while (!ct.IsCancellationRequested) {
                 using var scope = serviceScopeFactory.CreateAsyncScope();
                 using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
@@ -59,8 +60,13 @@ namespace bakawatch.BakaSync.Workers {
 
                 try {
                     foreach (var @class in classes) {
-                        await WeekEdgeWait(ct);
-                        if (ct.IsCancellationRequested) break;
+                        if (ct.IsCancellationRequested)
+                            break;
+
+                        if (await WeekEdgeWait(ct))
+                            // we have waited over a week edge and
+                            // now week and nextWeek have shifted
+                            goto outer;
 
                         if (!collisionMap.ContainsKey(@class.BakaId)) {
                             collisionMap.Add(@class.BakaId, []);

@@ -15,7 +15,7 @@ namespace bakawatch.BakaSync
 
         protected int BreakLength { get; set; } = 10 * 1000;
 
-        protected async Task WeekEdgeWait(CancellationToken ct) {
+        protected async Task<bool> WeekEdgeWait(CancellationToken ct) {
             // prevent date desync while parsing timetables
             // when on the edge of a week by pausing for a while
 
@@ -33,8 +33,12 @@ namespace bakawatch.BakaSync
                     } else {
                         await Task.Delay((int)diff.TotalMilliseconds, ct);
                     }
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
         protected async Task TakeBreak(CancellationToken ct) {
