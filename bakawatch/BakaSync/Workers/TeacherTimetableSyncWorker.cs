@@ -19,7 +19,6 @@ namespace bakawatch.BakaSync.Workers {
         TimetableNotificationService timetableNotificationService,
         BakaTimetableParser bakaTimetableParser,
         ILogger<TeacherTimetableSyncWorker> logger,
-        SyncOptimizationService syncOptimizationService,
         IServiceScopeFactory serviceScopeFactory
     )
         : SyncWorkerBase
@@ -43,7 +42,7 @@ namespace bakawatch.BakaSync.Workers {
 
         private async Task DoParse(BakaContext db, TeacherTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
             var ptm = await bakaTimetableParser.Get(sync.Teacher.BakaId.Value, BakaTimetableParser.Who.Teacher, when);
-            var tm = await timetableService.GetTeacherTimetable(db, week, sync.Teacher);
+            var tm = await timetableService.GetTeacherTimetable(db, week, sync.Teacher.BakaId);
 
             await sync.ParseAndUpdateTimetable(ptm, tm, collisionMap[sync.Teacher.BakaId], ct);
         }
@@ -60,9 +59,6 @@ namespace bakawatch.BakaSync.Workers {
 
                 try {
                     foreach (var teacher in teachers) {
-                        if (!await syncOptimizationService.ShouldCheck(teacher.BakaId))
-                            continue;
-
                         await WeekEdgeWait(ct);
                         if (ct.IsCancellationRequested) break;
 

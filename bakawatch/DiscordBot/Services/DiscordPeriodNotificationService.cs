@@ -1,6 +1,5 @@
 ﻿using bakawatch.BakaSync;
 using bakawatch.BakaSync.Entities;
-using bakawatch.BakaSync.Services;
 using bakawatch.DiscordBot.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -10,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace bakawatch.DiscordBot.Services {
-    public class DiscordPeriodNotificationService(DiscordContext discordContext, DiscordLocalService discordChannelService, SyncOptimizationService syncOptimizationService) {
+    public class DiscordPeriodNotificationService(DiscordContext discordContext, DiscordLocalService discordChannelService) {
         public async Task<bool> Subscribe(Discord.ITextChannel channel, ClassBakaId classId, string? groupName) {
             var exists = await discordContext.PeriodChangeNotifications
                 .AnyAsync(x => x.ClassBakaId == classId && x.GroupName == (groupName ?? ClassGroup.DefaultGroupName));
@@ -25,8 +24,6 @@ namespace bakawatch.DiscordBot.Services {
 
             await discordContext.SaveChangesAsync();
 
-            await syncOptimizationService.Add(classId);
-
             return true;
         }
 
@@ -39,7 +36,6 @@ namespace bakawatch.DiscordBot.Services {
 
             discordContext.PeriodChangeNotifications.Remove(n);
             await discordContext.SaveChangesAsync();
-
             return true;
         }
 
