@@ -1,5 +1,6 @@
 ﻿using AngleSharp.Html.Parser;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -68,7 +69,7 @@ namespace bakawatch.BakaSync
             }
         }
 
-        public async Task<HttpResponseMessage> Request(DRequestGenerator requestGenerator)
+        private async Task<HttpResponseMessage> RequestInternal(DRequestGenerator requestGenerator)
         {
             for (; ; )
             {
@@ -104,6 +105,18 @@ namespace bakawatch.BakaSync
             }
         }
 
+        public async Task<HttpResponseMessage> Request(DRequestGenerator requestGenerator) {
+            try {
+                return await RequestInternal(requestGenerator);
+            } catch (BakaError ex) {
+                throw new BakaHttpError("Bakalari error", ex);
+            } catch (HttpRequestException ex) {
+                throw new BakaHttpError("Bakalari are down, probably", ex);
+            } catch (TaskCanceledException ex) {
+                throw new BakaHttpError("Bakalari are down, probably, probably", ex);
+            }
+        }
+
         public delegate HttpRequestMessage DRequestGenerator();
 
         public record LoginDetails(string Username, string Password);
@@ -119,5 +132,7 @@ namespace bakawatch.BakaSync
             public BakaError() : base() { }
             public BakaError(string message) : base(message) { }
         }
+
+        public class BakaHttpError(string message, Exception innerException) : Exception(message, innerException) { }
     }
 }

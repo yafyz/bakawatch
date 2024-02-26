@@ -37,6 +37,8 @@ namespace bakawatch.DiscordBot {
          
             services.AddScoped<SubjectReminderService>();
             services.AddHostedService<SubjectReminderWorker>();
+
+            services.AddHostedService<SyncOptimizationBuildWorker>();
         }
     }
 }

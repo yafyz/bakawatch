@@ -1,4 +1,5 @@
 ﻿using AngleSharp.Html.Parser;
+using bakawatch.BakaSync.Entities;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
@@ -104,6 +105,39 @@ namespace bakawatch.BakaSync
                     if (p.JsonData.changeinfo == "")
                         p.JsonData.changeinfo = null;
 
+                    if (p.JsonData.group == "")
+                        p.JsonData.group = null;
+
+                    if (when == When.Permanent) {
+                        // format: "L/S: SUBJECT"
+                        if (p.SubjectShortName?.Contains(':') == true) {
+                            var split = p.SubjectShortName
+                                .Split(':')
+                                .Select(x => x.Trim())
+                                .ToArray();
+
+                            (p.OddOrEvenWeek, p.SubjectShortName) = split switch {
+                                ["L", var subjectName] => (OddEven.Odd, subjectName),
+                                ["S", var subjectName] => (OddEven.Even, subjectName),
+                                _ => throw new InvalidDataException($"invalid data '{p.SubjectShortName}'")
+                            };
+                        }
+                    }
+
+                    // hasAbsent is true when there is an absence without
+                    // a substituted period, or atleast that's one of the cases
+                    if (p.JsonData.hasAbsent
+                     && p.JsonData.absentInfoText?.Contains('|') == true
+                     // these shouldn't be set if hasAbsent is true, but just to be sure
+                     && (p.JsonData.absentinfo == null || p.JsonData.InfoAbsentName == null)) {
+
+                        // it seems identical, just in one field and delimited by '|',
+                        // set the other absent fields for usage simplicity later on
+                        var split = p.JsonData.absentInfoText.Split('|');
+                        p.JsonData.absentinfo = split[0];
+                        p.JsonData.InfoAbsentName = split[1];
+                    }
+
                     if (!string.IsNullOrEmpty(p.JsonData.teacher))
                     {
                         var nameSplit = p.JsonData.teacher.Split(" ");
@@ -204,7 +238,7 @@ namespace bakawatch.BakaSync
             public string subjecttext { get; set; }
             public string teacher { get; set; }
             public string room { get; set; }
-            public string group { get; set; }
+            public string? group { get; set; }
             public string theme { get; set; }
             public string notice { get; set; }
             public object homeworks { get; set; }
@@ -213,12 +247,17 @@ namespace bakawatch.BakaSync
             public string? absentinfo { get; set; }
             public string? InfoAbsentName { get; set; }
             public string? removedinfo { get; set; }
+
+            public string? absentInfoText { get; set; }
+            public bool hasAbsent { get; set; }
         }
 
         public class PeriodInfo
         {
             public DateOnly Date;
             public int PeriodIndex;
+
+            public OddEven? OddOrEvenWeek;
 
             public PeriodInfoJSON JsonData;
             public string? SubjectShortName;

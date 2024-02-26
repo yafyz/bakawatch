@@ -53,6 +53,8 @@ namespace bakawatch.DiscordBot.Workers
             
             await foreach (var reminder in query) {
                 await subjectReminderService.UpdateReminder(reminder);
+                if (reminder.MessageUpdatePending)
+                    await subjectReminderService.UpdateReminderMessage(reminder);
             }
         }
     }
