@@ -29,6 +29,8 @@ namespace bakawatch.BakaSync
 
             services.AddTransient<TeacherTimetableSync>();
             services.AddHostedService<TeacherTimetableSyncWorker>();
+
+            services.AddSingleton<SyncOptimizationService>();
         }
     }
 }
