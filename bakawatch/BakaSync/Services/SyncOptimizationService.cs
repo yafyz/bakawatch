@@ -130,7 +130,7 @@ namespace bakawatch.BakaSync.Services
             var scope = serviceScopeFactory.CreateAsyncScope();
             var bakaContext = scope.ServiceProvider.GetRequiredService<BakaContext>();
             var teacherList = await bakaContext.LivePeriods
-                .Where(LivePeriod.IsClassPeriod)
+                .Where(LivePeriodQuery.IsClassPeriod)
                 .Where(x => x.Groups.Any(y => strd.Contains(y.Class.BakaId.Value)))
                 .Where(x => x.Teacher != null)
                 .GroupBy(x => x.Teacher)

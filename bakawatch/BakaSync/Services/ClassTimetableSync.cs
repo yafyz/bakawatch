@@ -25,12 +25,12 @@ namespace bakawatch.BakaSync.Services
 
         protected override IQueryable<LivePeriod> PeriodHistory
             => bakaContext.LivePeriodsWithIncludes
-                .Where(LivePeriod.IsClassPeriod)
-                .Where(LivePeriod.IsHistorical);
+                .Where(LivePeriodQuery.IsClassPeriod)
+                .Where(LivePeriodQuery.IsHistorical);
         protected override IQueryable<LivePeriod> LivePeriods
             => bakaContext.LivePeriodsWithIncludes
-                .Where(LivePeriod.IsClassPeriod)
-                .Where(LivePeriod.IsCurrent);
+                .Where(LivePeriodQuery.IsClassPeriod)
+                .Where(LivePeriodQuery.IsCurrent);
         protected override BakaTimetableParser.Who Who => BakaTimetableParser.Who.Class;
 
         protected override Task FirePeriodChanged(LivePeriod _newPeriod, LivePeriod _oldPeriod) {

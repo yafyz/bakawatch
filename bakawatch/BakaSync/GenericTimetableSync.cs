@@ -18,6 +18,7 @@ namespace bakawatch.BakaSync
     internal abstract class GenericTimetableSync<PERIOD, PERIODHISTORY>
     {
         public abstract string? Tag { get; }
+        protected abstract BakaTimetableParser.Who Who { get; }
 
         protected abstract BakaContext bakaContext { get; }
         protected abstract ILogger logger { get; }
@@ -213,6 +214,7 @@ namespace bakawatch.BakaSync
             Room? room = await GetRoom(periodInfo.JsonData.room);
 
             var period = new PeriodBase() {
+                Who = Who,
                 Groups = groups.ToHashSet(),
                 Subject = subject,
                 Room = room,

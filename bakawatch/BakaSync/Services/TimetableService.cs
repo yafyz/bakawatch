@@ -92,31 +92,31 @@ namespace bakawatch.BakaSync.Services
 
         private async Task<List<LivePeriod>> GetTeacherTimetable(BakaContext db, TimetableDay day, TeacherBakaId teacherBakaId) {
             return await db.LivePeriodsWithIncludes
-                .Where(LivePeriod.IsCurrent)
-                .Where(LivePeriod.IsTeacherPeriod)
-                .Where(LivePeriod.ByTeacherBakaId(teacherBakaId))
+                .Where(LivePeriodQuery.IsCurrent)
+                .Where(LivePeriodQuery.IsTeacherPeriod)
+                .Where(LivePeriodQuery.ByTeacherBakaId(teacherBakaId))
                 .Where(x => x.Day.ID == day.ID)
                 .ToListAsync();
         }
 
         private async Task<List<LivePeriod>> GetClassTimetable(BakaContext db, TimetableDay day, ClassBakaId classBakaId) {
             return await db.LivePeriodsWithIncludes
-                .Where(LivePeriod.IsCurrent)
-                .Where(LivePeriod.IsClassPeriod)
-                .Where(LivePeriod.ByClassBakaId(classBakaId))
+                .Where(LivePeriodQuery.IsCurrent)
+                .Where(LivePeriodQuery.IsClassPeriod)
+                .Where(LivePeriodQuery.ByClassBakaId(classBakaId))
                 .Where(x => x.Day.ID == day.ID)
                 .ToListAsync();
         }
 
         public IQueryable<LivePeriod> GetClassPeriods(BakaContext db, ClassBakaId classId, string? group) {
             IQueryable<LivePeriod> query = db.LivePeriodsWithIncludes
-                        .Where(LivePeriod.IsCurrent)
-                        .Where(LivePeriod.IsClassPeriod)
-                        .Where(LivePeriod.ByClassBakaId(classId));
+                        .Where(LivePeriodQuery.IsCurrent)
+                        .Where(LivePeriodQuery.IsClassPeriod)
+                        .Where(LivePeriodQuery.ByClassBakaId(classId));
             if (group == null) {
-                query = query.Where(LivePeriod.ByDefaultGroup);
+                query = query.Where(LivePeriodQuery.ByDefaultGroup);
             } else {
-                query = query.Where(LivePeriod.ByGroupName(group));
+                query = query.Where(LivePeriodQuery.ByGroupName(group));
             }
             return query;
         }

@@ -19,6 +19,7 @@ namespace bakawatch.BakaSync.Entities
 
     public enum OddEven
     {
+        None,
         Even,
         Odd
     }

@@ -16,7 +16,6 @@ namespace bakawatch.BakaSync {
     {
         protected abstract IQueryable<LivePeriod> PeriodHistory { get; }
         protected abstract IQueryable<LivePeriod> LivePeriods { get; }
-        protected abstract BakaTimetableParser.Who Who { get; }
 
         protected override Task<bool> ComparePeriods(LivePeriod p1, LivePeriod p2) {
             if (p1.Day.ID != p2.Day.ID)
