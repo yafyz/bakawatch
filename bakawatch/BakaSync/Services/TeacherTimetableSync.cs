@@ -15,69 +15,50 @@ namespace bakawatch.BakaSync.Services
         TimetableNotificationService timetableNotificationService,
         ILogger<TeacherTimetableSync> _logger
     )
-        : LivePeriodTimetableSync<TeacherPeriod>
+        : LivePeriodTimetableSync
     {
         public Teacher Teacher { get; set; }
+        public override string? Tag => $"teacher={Teacher.FullName}";
 
         protected override BakaContext bakaContext => _bakaContext;
         protected override ILogger logger => _logger;
 
-        protected override IQueryable<TeacherPeriod> LivePeriods => bakaContext.TeacherPeriodsLive;
-        protected override IQueryable<TeacherPeriod> PeriodHistory => bakaContext.TeacherPeriodHistory;
+        protected override IQueryable<LivePeriod> LivePeriods
+            => bakaContext.LivePeriodsWithIncludes
+                .Where(LivePeriod.IsTeacherPeriod)
+                .Where(LivePeriod.IsCurrent);
+        protected override IQueryable<LivePeriod> PeriodHistory
+            => bakaContext.LivePeriodsWithIncludes
+                .Where(LivePeriod.IsTeacherPeriod)
+                .Where(LivePeriod.IsHistorical);
+        protected override BakaTimetableParser.Who Who => BakaTimetableParser.Who.Teacher;
 
-        protected override Task FirePeriodChanged(TeacherPeriod newPeriod, TeacherPeriod oldPeriod) {
+        protected override Task FirePeriodChanged(LivePeriod _newPeriod, LivePeriod _oldPeriod) {
+            TeacherPeriod newPeriod = new(_newPeriod);
+            TeacherPeriod oldPeriod = new(_oldPeriod);
             logger.Log(LogLevel.Information, $"Teacher Update {newPeriod.Day.Date}:{newPeriod.PeriodIndex} {newPeriod.Teacher.FullName} - {oldPeriod.Subject?.Name} ({oldPeriod.Type}) => {newPeriod.Subject?.Name} ({newPeriod.Type})");
             timetableNotificationService.FireTeacherPeriodChanged(newPeriod, oldPeriod);
             return Task.CompletedTask;
         }
 
-        protected override Task FirePeriodDropped(TeacherPeriod period) {
+        protected override Task FirePeriodDropped(LivePeriod _period) {
+            TeacherPeriod period = new(_period);
             logger.Log(LogLevel.Information, $"Teacher Dropping {period.Day.Date}:{period.PeriodIndex} {period.Teacher.FullName} - {period.Subject?.Name} ({period.Type})");
             timetableNotificationService.FireTeacherPeriodDropped(period);
             return Task.CompletedTask;
         }
 
-        protected override Task FirePeriodNew(TeacherPeriod period) {
+        protected override Task FirePeriodNew(LivePeriod _period) {
+            TeacherPeriod period = new(_period);
             logger.LogInformation($"Teacher New {period.Day.Date}:{period.PeriodIndex} {period.Teacher.FullName} - {period.Subject?.Name} ({period.Type})");
             timetableNotificationService.FireTeacherPeriodAdded(period);
             return Task.CompletedTask;
         }
 
-        protected override Task InsertPeriod(TeacherPeriod newEntity) {
-            bakaContext.TeacherPeriods.Add(newEntity);
-            return Task.CompletedTask;
-        }
-
         protected override Task<Teacher?> GetTeacher(string? teacherName) {
+            if (teacherName != null)
+                throw new ArgumentException($"expected teacherName=null, got teacherName={teacherName}");
             return Task.FromResult<Teacher?>(Teacher);
         }
-
-        protected override async Task<TeacherPeriod> ParseIntoPeriod(BakaTimetableParser.PeriodInfo periodInfo) {
-            var p = await base.ParseIntoPeriod(periodInfo);
-            p.HasAbsent = periodInfo.JsonData.hasAbsent;
-            return p;
-        }
-
-        protected override async Task<bool> ComparePeriods(TeacherPeriod p1, TeacherPeriod p2) {
-            return await base.ComparePeriods(p1, p2)
-                && p1.HasAbsent == p2.HasAbsent;
-        }
-
-        protected override Task<TeacherPeriod> MakeLivePeriod(LivePeriodBase genericPeriodInfo)
-            => Task.FromResult(new TeacherPeriod() {
-                Type = genericPeriodInfo.Type,
-                Groups = genericPeriodInfo.Groups,
-                Room = genericPeriodInfo.Room,
-                Subject = genericPeriodInfo.Subject,
-                Teacher = genericPeriodInfo.Teacher!,
-                ChangeInfo = genericPeriodInfo.ChangeInfo,
-                RemovedInfo = genericPeriodInfo.RemovedInfo,
-                AbsenceInfoShort = genericPeriodInfo.AbsenceInfoShort,
-                AbsenceInfoReason = genericPeriodInfo.AbsenceInfoReason,
-                Day = genericPeriodInfo.Day,
-                PeriodIndex = genericPeriodInfo.PeriodIndex,
-                Timestamp = genericPeriodInfo.Timestamp,
-                IsHistory = genericPeriodInfo.IsHistory,
-            });
     }
 }
