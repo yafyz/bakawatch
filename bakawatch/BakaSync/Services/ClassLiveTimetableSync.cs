@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 
 namespace bakawatch.BakaSync.Services
 {
-    internal class ClassTimetableSync(
+    internal class ClassLiveTimetableSync(
         BakaContext _bakaContext,
         TimetableNotificationService timetableNotificationService,
-        ILogger<ClassTimetableSync> _logger
+        ILogger<ClassLiveTimetableSync> _logger
     )
         : LivePeriodTimetableSync
     {

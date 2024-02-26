@@ -41,7 +41,7 @@ namespace bakawatch.BakaSync.Workers {
             await Worker(stoppingToken);
         }
 
-        private async Task DoParse(BakaContext db, TeacherTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
+        private async Task DoParse(BakaContext db, TeacherLiveTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
             var ptm = await bakaTimetableParser.Get(sync.Teacher.BakaId.Value, BakaTimetableParser.Who.Teacher, when);
             var tm = await timetableService.GetTeacherTimetable(db, week, sync.Teacher);
 
@@ -76,7 +76,7 @@ namespace bakawatch.BakaSync.Workers {
                             collisionMap.Add(teacher.BakaId, []);
                         }
 
-                        var sync = scope.ServiceProvider.GetRequiredService<TeacherTimetableSync>();
+                        var sync = scope.ServiceProvider.GetRequiredService<TeacherLiveTimetableSync>();
                         sync.Teacher = teacher;
 
                         await DoParse(db, sync, week, BakaTimetableParser.When.Actual, ct);

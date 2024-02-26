@@ -24,10 +24,10 @@ namespace bakawatch.BakaSync
 
             services.AddHostedService<IdSyncWorker>();
 
-            services.AddTransient<ClassTimetableSync>();
+            services.AddTransient<ClassLiveTimetableSync>();
             services.AddHostedService<ClassTimetableSyncWorker>();
 
-            services.AddTransient<TeacherTimetableSync>();
+            services.AddTransient<TeacherLiveTimetableSync>();
             services.AddHostedService<TeacherTimetableSyncWorker>();
 
             services.AddSingleton<SyncOptimizationService>();
