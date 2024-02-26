@@ -145,9 +145,15 @@ namespace bakawatch.BakaSync.Services
             return e.FirstOrDefault();
         }
 
-        public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex) {
-            return Periods.Where(x => x.Day.Date == date
-                                   && x.PeriodIndex == periodIndex);
+        public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex, bool defaultOnly = false) {
+            var query = Periods.Where(x => x.Day.Date == date
+                                        && x.PeriodIndex == periodIndex);
+
+            if (defaultOnly) {
+                query = query.Where(x => x.Groups.All(x => x.IsDefaultGroup));
+            }
+
+            return query;
         }
     }
 
@@ -155,6 +161,6 @@ namespace bakawatch.BakaSync.Services
         public List<T> Periods { get; }
 
         public T? GetPeriod(DateOnly date, int periodIndex, HashSet<ClassGroup> group);
-        public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex);
+        public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex, bool defaultOnly = false);
     }
 }

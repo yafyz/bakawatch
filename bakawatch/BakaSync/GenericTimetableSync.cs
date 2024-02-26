@@ -104,7 +104,7 @@ namespace bakawatch.BakaSync
                     } else {
                         // merge => split
                         PERIOD? maybe_period = currentTimetable
-                            .GetPeriods(parsedPeriod.Date, parsedPeriod.PeriodIndex)
+                            .GetPeriods(parsedPeriod.Date, parsedPeriod.PeriodIndex, true)
                             .SingleOrDefault();
 
                         if (maybe_period != null) {
