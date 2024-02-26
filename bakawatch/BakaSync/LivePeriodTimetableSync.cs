@@ -10,15 +10,15 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace bakawatch.BakaSync {
-
-
-    internal abstract class LivePeriodTimetableSync : GenericTimetableSync<LivePeriod, LivePeriod>
+    internal abstract class LivePeriodTimetableSync<T> : GenericTimetableSync<T, T>
+        where T : LivePeriodBase
     {
-        protected abstract IQueryable<LivePeriod> PeriodHistory { get; }
-        protected abstract IQueryable<LivePeriod> LivePeriods { get; }
-        protected abstract BakaTimetableParser.Who Who { get; }
+        protected abstract IQueryable<T> PeriodHistory { get; }
+        protected abstract IQueryable<T> LivePeriods { get; }
 
-        protected override Task<bool> ComparePeriods(LivePeriod p1, LivePeriod p2) {
+        protected abstract Task<T> MakeLivePeriod(LivePeriodBase genericPeriodInfo);
+
+        protected override Task<bool> ComparePeriods(T p1, T p2) {
             if (p1.Day.ID != p2.Day.ID)
                 throw new InvalidDataException("period not same day");
 
@@ -38,38 +38,37 @@ namespace bakawatch.BakaSync {
             return Task.FromResult(areEqual);
         }
 
-        protected override async Task<LivePeriod?> GetHistoryByPeriod(LivePeriod period)
+        protected override async Task<T?> GetHistoryByPeriod(T period)
             => await PeriodHistory
                 // id should be the same
                 .Where(x => x.ID == period.ID)
                 .FirstOrDefaultAsync();
 
-        protected override async Task<LivePeriod?> GetPeriodByPeriod(LivePeriod period)
+        protected override async Task<T?> GetPeriodByPeriod(T period)
             => await LivePeriods
                 .Where(x => x == period)
                 .FirstOrDefaultAsync();
 
-        protected override Task<bool> IsPeriodDropped(LivePeriod period)
+        protected override Task<bool> IsPeriodDropped(T period)
             => Task.FromResult(period.Type == PeriodType.Dropped);
 
-        protected override Task MakePeriodDropped(LivePeriod period) {
+        protected override Task MakePeriodDropped(T period) {
             period.Type = PeriodType.Dropped;
             return Task.CompletedTask;
         }
 
-        protected override async Task<LivePeriod> ParseIntoPeriod(BakaTimetableParser.PeriodInfo periodInfo) {
+        protected override async Task<T> ParseIntoPeriod(BakaTimetableParser.PeriodInfo periodInfo) {
             var day = await bakaContext.TimetableDays.FirstAsync(x => x.Date == periodInfo.Date);
 
             var basePeriod = await ParseIntoBasePeriod(periodInfo);
 
-            var period = new LivePeriod() {
+            var period = new LivePeriodBase() {
                 Type = periodInfo.JsonData.type switch {
                     "atom" => PeriodType.Normal,
                     "removed" => PeriodType.Removed,
                     "absent" => PeriodType.Absent,
                     _ => throw new InvalidDataException($"\"{periodInfo.JsonData.type}\" is not a valid period type")
                 },
-                Who = Who,
 
                 Groups = basePeriod.Groups,
 
@@ -81,23 +80,17 @@ namespace bakawatch.BakaSync {
                 RemovedInfo = periodInfo.JsonData.removedinfo,
                 AbsenceInfoShort = periodInfo.JsonData.absentinfo,
                 AbsenceInfoReason = periodInfo.JsonData.InfoAbsentName,
-                HasAbsent = periodInfo.JsonData.hasAbsent,
 
                 Day = day,
                 PeriodIndex = periodInfo.PeriodIndex
             };
 
-            return period;
+            return await MakeLivePeriod(period);
         }
 
-        protected override Task<LivePeriod> MakeIntoHistory(LivePeriod period) {
+        protected override Task<T> MakeIntoHistory(T period) {
             period.IsHistory = true;
             return Task.FromResult(period);
-        }
-
-        protected override Task InsertPeriod(LivePeriod newEntity) {
-            bakaContext.LivePeriods.Add(newEntity);
-            return Task.CompletedTask;
         }
     }
 }

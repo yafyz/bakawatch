@@ -17,8 +17,6 @@ namespace bakawatch.BakaSync
 {
     internal abstract class GenericTimetableSync<PERIOD, PERIODHISTORY>
     {
-        public abstract string? Tag { get; }
-
         protected abstract BakaContext bakaContext { get; }
         protected abstract ILogger logger { get; }
 
@@ -186,15 +184,17 @@ namespace bakawatch.BakaSync
                                   && x.PeriodIndex == pper.PeriodIndex
                                   && x.Group == pper.JsonData.group);
 
+            // todo: better logging
+
             if (collisions.Any()) {
                 if (collisionLog == null) {
-                    logger.LogWarning($"timetable collision, tag='{Tag}', group={pper.JsonData.group} date={pper.Date} periodIndex={pper.PeriodIndex}");
+                    logger.LogWarning($"timetable collision, className={"@class.Name"} group={pper.JsonData.group} date={pper.Date} periodIndex={pper.PeriodIndex}");
                     collisionLogs.Add(new(pper.Date, pper.PeriodIndex, pper.JsonData.group));
                 }
 
                 return true;
             } else if (collisionLog != null) {
-                logger.LogInformation($"timetable collision resolved, tag='{Tag}', group={collisionLog.Group} date={collisionLog.Date} periodIndex={collisionLog.PeriodIndex}");
+                logger.LogInformation($"timetable collision resolved, className={"@class.Name"} group={collisionLog.Group} date={collisionLog.Date} periodIndex={collisionLog.PeriodIndex}");
                 collisionLogs.Remove(collisionLog);
             }
 
@@ -298,14 +298,15 @@ namespace bakawatch.BakaSync
 
         protected virtual async Task<Class> GetClassByName(string? className) {
             if (className == null) {
-                throw new ArgumentException("className cannot be null");
+                return null;
             }
             return await bakaContext.Classes.FirstAsync(x => x.Name == className);
         }
 
-        protected virtual IEnumerable<(string?, string?)> GetClassNameAndGroupName(BakaTimetableParser.PeriodInfo pper) {
+        protected IEnumerable<(string?, string?)> GetClassNameAndGroupName(BakaTimetableParser.PeriodInfo pper) {
             if (pper.JsonData.group == null) {
-                return [];
+                //todo: teacher shit
+                return [(null, null)];
             }
             
             return pper.JsonData.group
@@ -323,9 +324,11 @@ namespace bakawatch.BakaSync
         protected async Task<HashSet<ClassGroup>> GetGroups(BakaTimetableParser.PeriodInfo pper) {
             return await GetClassNameAndGroupName(pper)
                 .ToAsyncEnumerable()
-                .SelectAwait(async x => {
+                .SelectAwait<(string?, string?), ClassGroup>(async x => {
                     (var className, var groupName) = x;
                     var @class = await GetClassByName(className);
+                    if (@class == null)
+                        return null;
                     ClassGroup group = await GetGroup(@class, groupName);
                     return group;
                 })

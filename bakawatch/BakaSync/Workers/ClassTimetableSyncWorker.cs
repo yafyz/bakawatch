@@ -19,7 +19,6 @@ namespace bakawatch.BakaSync.Workers {
         TimetableNotificationService timetableNotificationService,
         BakaTimetableParser bakaTimetableParser,
         ILogger<ClassTimetableSyncWorker> logger,
-        SyncOptimizationService syncOptimizationService,
         IServiceScopeFactory serviceScopeFactory
     )
         : SyncWorkerBase
@@ -43,7 +42,7 @@ namespace bakawatch.BakaSync.Workers {
 
         private async Task DoParse(BakaContext db, ClassTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
             var ptm = await bakaTimetableParser.Get(sync.Class.BakaId.Value, BakaTimetableParser.Who.Class, when);
-            var tm = await timetableService.GetClassTimetable(db, week, sync.Class);
+            var tm = await timetableService.GetClassTimetable(db, week, sync.Class.BakaId);
 
             await sync.ParseAndUpdateTimetable(ptm, tm, collisionMap[sync.Class.BakaId], ct);
         }
@@ -59,8 +58,6 @@ namespace bakawatch.BakaSync.Workers {
                 TimetableWeek week = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now));
                 TimetableWeek nextWeek = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now).AddDays(7));
 
-                var optSyncPending = syncOptimizationService.TeacherClassSyncPending;
-
                 try {
                     foreach (var @class in classes) {
                         if (ct.IsCancellationRequested)
@@ -70,9 +67,6 @@ namespace bakawatch.BakaSync.Workers {
                             // we have waited over a week edge and
                             // now week and nextWeek have shifted
                             goto outer;
-                            
-                        if (!await syncOptimizationService.ShouldCheck(@class.BakaId))
-                            continue;
 
                         if (!collisionMap.ContainsKey(@class.BakaId)) {
                             collisionMap.Add(@class.BakaId, []);
@@ -91,9 +85,6 @@ namespace bakawatch.BakaSync.Workers {
                 } catch (BakaTimetableParser.BakaParseErrorNoTimetable ex) {
                     logger.LogError(ex, "bad response from baka");
                 }
-
-                if (optSyncPending)
-                    await syncOptimizationService.OnClassesSynced();
 
                 await TakeBreak(ct);
             }

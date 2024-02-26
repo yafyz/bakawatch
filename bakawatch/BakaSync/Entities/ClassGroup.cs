@@ -14,7 +14,8 @@ namespace bakawatch.BakaSync.Entities
         public required string Name { get; set; }
         public bool IsDefaultGroup { get; set; }
 
-        public ICollection<LivePeriod> LivePeriods { get; set; }
+        public ICollection<ClassPeriod> ClassPeriods { get; set; }
+        public ICollection<TeacherPeriod> TeacherPeriods { get; set; }
  
         public const string DefaultGroupName = "default";
     }

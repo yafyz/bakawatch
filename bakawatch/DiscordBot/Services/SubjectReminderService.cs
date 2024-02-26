@@ -20,8 +20,7 @@ namespace bakawatch.DiscordBot.Services
         BakaContext bakaContext,
         DiscordSocketClient discordClient,
         DiscordLocalService discordLocalService,
-        TimetableService timetableService,
-        SyncOptimizationService syncOptimizationService
+        TimetableService timetableService
     ) {
         public async Task AddReminder(
             Class @class,
@@ -48,11 +47,10 @@ namespace bakawatch.DiscordBot.Services
 
             discordContext.SubjectReminders.Add(reminder);
             await UpdateReminderMessage(reminder, true);
-            await syncOptimizationService.Add(@class.BakaId);
         }
 
         public async Task<ClassPeriod?> GetReminderPeriod(SubjectReminder reminder) {
-            var p = await timetableService.GetClassPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
+            var p = await timetableService.GetPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
                 .Where(x => x.Day.Date >= reminder.Date)
                 .Where(x => x.Subject != null
                          && x.Subject.ShortName == reminder.SubjectShortName)
@@ -62,7 +60,7 @@ namespace bakawatch.DiscordBot.Services
                 .Select(x => x.First())
                 .FirstOrDefaultAsync();
 
-            return p != null ? new(p) : null;
+            return p;
         }
 
         public async Task UpdateReminderMessage(SubjectReminder reminder, bool firstUpdate = false) {
@@ -109,7 +107,7 @@ namespace bakawatch.DiscordBot.Services
             var now = DateTime.Now;
             var dateonlyNow = DateOnly.FromDateTime(now);
 
-            var periods = timetableService.GetClassPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
+            var periods = timetableService.GetPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
                 .Where(x => x.Day.Date >= reminder.Date // start at date
                          && x.Day.Date < dateonlyNow) // add a skip at the end of the day
                 .Where(x => x.Subject != null && x.Subject.ShortName == reminder.SubjectShortName)
