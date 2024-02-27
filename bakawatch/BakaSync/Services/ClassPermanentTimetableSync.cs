@@ -37,18 +37,21 @@ namespace bakawatch.BakaSync.Services
             PermanentClassPeriod newPeriod = new(_newPeriod);
             PermanentClassPeriod oldPeriod = new(_periodHistory);
             logger.Log(LogLevel.Information, $"Class Update {newPeriod.OddOrEvenWeek}:{newPeriod.DayOfWeek}:{newPeriod.PeriodIndex} {newPeriod.Class!.Name}:{newPeriod.Group?.Name} - {oldPeriod.Subject?.Name} ({oldPeriod.Room?.Name}) => {newPeriod.Subject?.Name} ({newPeriod.Room?.Name})");
+            timetableNotificationService.FirePermanentClassPeriodChanged(newPeriod, oldPeriod);
             return Task.CompletedTask;
         }
 
         protected override Task FirePeriodDropped(PermanentPeriod _period) {
             PermanentClassPeriod period = new(_period);
             logger.Log(LogLevel.Information, $"Class Dropping {period.OddOrEvenWeek}:{period.DayOfWeek}:{period.PeriodIndex} {period.Class!.Name} - {period.Subject?.Name} ({period.Room?.Name})");
+            timetableNotificationService.FirePermanentClassPeriodDropped(period);
             return Task.CompletedTask;
         }
 
         protected override Task FirePeriodNew(PermanentPeriod _period) {
             PermanentClassPeriod period = new(_period);
             logger.LogInformation($"Class New {period.OddOrEvenWeek}:{period.DayOfWeek}:{period.PeriodIndex} {period.Class!.Name}:{period.Group?.Name} - {period.Subject?.Name} ({period.Room?.Name})");
+            timetableNotificationService.FirePermanentClassPeriodAdded(period);
             return Task.CompletedTask;
         }
 
