@@ -28,6 +28,15 @@ namespace bakawatch.BakaSync
                 .Include(x => x.Groups)
                 .ThenInclude(x => x.Class);
 
+        public DbSet<PermanentPeriod> PermanentPeriods { get; set; }
+        public IQueryable<PermanentPeriod> PermanentPeriodsWithIncludes
+            => PermanentPeriods
+                .Include(x => x.Subject)
+                .Include(x => x.Room)
+                .Include(x => x.Teacher)
+                .Include(x => x.Groups)
+                .ThenInclude(x => x.Class);
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseSqlite($"Data source=baka.db")

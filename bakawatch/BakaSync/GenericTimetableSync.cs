@@ -75,7 +75,7 @@ namespace bakawatch.BakaSync
                 if (!areDefaultGroups && groups.Any(x => x.IsDefaultGroup))
                     throw new NotImplementedException("this may not be good");
 
-                var period = currentTimetable.GetPeriod(parsedPeriod.Date, parsedPeriod.PeriodIndex, groups);
+                var period = currentTimetable.GetPeriod(parsedPeriod, groups);
                 var newPeriod = await ParseIntoPeriod(parsedPeriod);
 
                 if (period == null) {
@@ -89,7 +89,7 @@ namespace bakawatch.BakaSync
                         // i lied, we may have actually seen em,
                         // introducing to you, split subjects
 
-                        var maybe_periods = currentTimetable.GetPeriods(parsedPeriod.Date, parsedPeriod.PeriodIndex);
+                        var maybe_periods = currentTimetable.GetPeriods(parsedPeriod);
 
                         if (maybe_periods.Any()) {
                             histories = new(2);
@@ -105,7 +105,7 @@ namespace bakawatch.BakaSync
                     } else {
                         // merge => split
                         PERIOD? maybe_period = currentTimetable
-                            .GetPeriods(parsedPeriod.Date, parsedPeriod.PeriodIndex, true)
+                            .GetPeriods(parsedPeriod, true)
                             .SingleOrDefault();
 
                         if (maybe_period != null) {
@@ -179,18 +179,22 @@ namespace bakawatch.BakaSync
         private bool CheckForCollision(List<BakaTimetableParser.PeriodInfo> ptm, BakaTimetableParser.PeriodInfo pper, List<CollisionLog> collisionLogs) {
             var collisions = ptm.Where(x => x != pper
                           && x.Date == pper.Date
+                          && x.OddOrEvenWeek == pper.OddOrEvenWeek
+                          && x.DayOfWeek == pper.DayOfWeek
                           && x.PeriodIndex == pper.PeriodIndex
                           && x.JsonData.group == pper.JsonData.group);
 
             var collisionLog = collisionLogs
                 .FirstOrDefault(x => x.Date == pper.Date
                                   && x.PeriodIndex == pper.PeriodIndex
+                                  && x.OddOrEvenWeek == pper.OddOrEvenWeek
+                                  && x.DayOfWeek == pper.DayOfWeek
                                   && x.Group == pper.JsonData.group);
 
             if (collisions.Any()) {
                 if (collisionLog == null) {
                     logger.LogWarning($"timetable collision, tag='{Tag}', group={pper.JsonData.group} date={pper.Date} periodIndex={pper.PeriodIndex}");
-                    collisionLogs.Add(new(pper.Date, pper.PeriodIndex, pper.JsonData.group));
+                    collisionLogs.Add(new(pper.Date, pper.PeriodIndex, pper.JsonData.group, pper.OddOrEvenWeek, pper.DayOfWeek));
                 }
 
                 return true;
@@ -336,9 +340,11 @@ namespace bakawatch.BakaSync
         }
     }
 
-    public class CollisionLog(DateOnly Date, int PeriodIndex, string Group) {
+    public class CollisionLog(DateOnly Date, int PeriodIndex, string Group, OddEven oddEven, DayOfWeek dayOfWeek) {
         public DateOnly Date = Date;
         public int PeriodIndex = PeriodIndex;
         public string Group = Group;
+        public OddEven OddOrEvenWeek = oddEven;
+        public DayOfWeek DayOfWeek = dayOfWeek;
     };
 }

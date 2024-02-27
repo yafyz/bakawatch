@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static bakawatch.BakaSync.BakaTimetableParser;
 
 namespace bakawatch.BakaSync.Services
 {
@@ -68,7 +70,7 @@ namespace bakawatch.BakaSync.Services
             return week;
         }
 
-        public async Task<Timetable<LivePeriod>> GetClassTimetable(BakaContext db, TimetableWeek week, Class @class) {
+        public async Task<LiveTimetable<LivePeriod>> GetClassTimetable(BakaContext db, TimetableWeek week, Class @class) {
             var periods = await week.Days
                 .Where(x => x.Week.ID == week.ID)
                 .ToAsyncEnumerable()
@@ -76,10 +78,19 @@ namespace bakawatch.BakaSync.Services
                 .SelectMany(x => x.ToAsyncEnumerable())
                 .ToListAsync();
 
-            return new Timetable<LivePeriod>(periods, $"{BakaTimetableParser.Who.Class}={@class.Name}");
+            return new LiveTimetable<LivePeriod>(periods, $"{BakaTimetableParser.Who.Class}={@class.Name}");
         }
 
-        public async Task<Timetable<LivePeriod>> GetTeacherTimetable(BakaContext db, TimetableWeek week, Teacher teacher) {
+        public async Task<PermanentTimetable<PermanentPeriod>> GetPermanentClassTimetable(BakaContext db, Class @class) {
+            var periods = await db.PermanentPeriodsWithIncludes
+                .Where(PermanentPeriodQuery.IsClassPeriod)
+                .Where(PermanentPeriodQuery.ByClass(@class))
+                .ToListAsync();
+
+            return new PermanentTimetable<PermanentPeriod>(periods, $"{BakaTimetableParser.Who.Class}={@class.Name}");
+        }
+
+        public async Task<LiveTimetable<LivePeriod>> GetTeacherTimetable(BakaContext db, TimetableWeek week, Teacher teacher) {
             var periods = await week.Days
                 .Where(x => x.Week.ID == week.ID)
                 .ToAsyncEnumerable()
@@ -87,7 +98,7 @@ namespace bakawatch.BakaSync.Services
                 .SelectMany(x => x.ToAsyncEnumerable())
                 .ToListAsync();
 
-            return new Timetable<LivePeriod>(periods, $"{BakaTimetableParser.Who.Teacher}={teacher.FullName}");
+            return new LiveTimetable<LivePeriod>(periods, $"{BakaTimetableParser.Who.Teacher}={teacher.FullName}");
         }
 
         private async Task<List<LivePeriod>> GetTeacherTimetable(BakaContext db, TimetableDay day, TeacherBakaId teacherBakaId) {
@@ -123,15 +134,20 @@ namespace bakawatch.BakaSync.Services
 
     }
 
-    public class Timetable<T> : ITimetable<T>
+    public class LiveTimetable<T> : ITimetable<T>
         where T : LivePeriod {
         public string? Tag { get; }
         public List<T> Periods { get; }
 
-        public Timetable(List<T> periods, string? tag = null) {
+        public LiveTimetable(List<T> periods, string? tag = null) {
             Periods = periods;
             Tag = tag;
         }
+
+        public T? GetPeriod(PeriodInfo periodInfo, HashSet<ClassGroup> groups)
+            => GetPeriod(periodInfo.Date, periodInfo.PeriodIndex, groups);
+        public IEnumerable<T> GetPeriods(PeriodInfo periodInfo, bool defaultOnly = false)
+            => GetPeriods(periodInfo.Date, periodInfo.PeriodIndex, defaultOnly);
 
         public T? GetPeriod(DateOnly date, int periodIndex, HashSet<ClassGroup> groups) {
             var e = GetPeriods(date, periodIndex)
@@ -157,10 +173,51 @@ namespace bakawatch.BakaSync.Services
         }
     }
 
+    public class PermanentTimetable<T> : ITimetable<T> where T : PermanentPeriod
+    {
+        public string? Tag { get; }
+        public List<T> Periods { get; }
+
+        public PermanentTimetable(List<T> periods, string? tag = null) {
+            Periods = periods;
+            Tag = tag;
+        }
+
+        public T? GetPeriod(PeriodInfo periodInfo, HashSet<ClassGroup> groups)
+            => GetPeriod(periodInfo.DayOfWeek, periodInfo.OddOrEvenWeek, periodInfo.PeriodIndex, groups);
+
+        public IEnumerable<T> GetPeriods(PeriodInfo periodInfo, bool defaultOnly = false)
+            => GetPeriods(periodInfo.DayOfWeek, periodInfo.OddOrEvenWeek, periodInfo.PeriodIndex, defaultOnly);
+
+        public T? GetPeriod(DayOfWeek dayOfWeek, OddEven oddEven, int periodIndex, HashSet<ClassGroup> groups) {
+            var e = GetPeriods(dayOfWeek, oddEven, periodIndex)
+                .Where(x => x.Groups.SetEquals(groups));
+
+            if (e.Count() > 1) {
+                var classes = groups.Select(x => $"{x.Class.Name}:{x.Name}").Aggregate((t, c) => t + ", " + c);
+                throw new InvalidDataException($"timetable collision, tag='{Tag}', classes='{classes}' periodIndex={periodIndex} date={oddEven}");
+            }
+
+            return e.FirstOrDefault();
+        }
+
+        public IEnumerable<T> GetPeriods(DayOfWeek dayOfWeek, OddEven oddEven, int periodIndex, bool defaultOnly = false) {
+            var query = Periods.Where(x => x.DayOfWeek == dayOfWeek
+                                        && x.OddOrEvenWeek == oddEven
+                                        && x.PeriodIndex == periodIndex);
+
+            if (defaultOnly) {
+                query = query.Where(x => x.Groups.All(x => x.IsDefaultGroup));
+            }
+
+            return query;
+        }
+    }
+
     public interface ITimetable<T> {
         public List<T> Periods { get; }
 
-        public T? GetPeriod(DateOnly date, int periodIndex, HashSet<ClassGroup> group);
-        public IEnumerable<T> GetPeriods(DateOnly date, int periodIndex, bool defaultOnly = false);
+        public T? GetPeriod(PeriodInfo periodInfo, HashSet<ClassGroup> group);
+        public IEnumerable<T> GetPeriods(PeriodInfo periodInfo, bool defaultOnly = false);
     }
 }

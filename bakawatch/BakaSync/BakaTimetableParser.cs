@@ -65,12 +65,13 @@ namespace bakawatch.BakaSync
 
         public async Task<List<PeriodInfo>> Get(string what, Who who, When when = When.Actual)
         {
-            var res = await bakaApi.Request(() => new HttpRequestMessage(HttpMethod.Get, $"Timetable/Public/{when}/{who}/{what}"));
+            string url = $"Timetable/Public/{when}/{who}/{what}";
+            var res = await bakaApi.Request(() => new HttpRequestMessage(HttpMethod.Get, url));
             var bodystr = await res.Content.ReadAsStringAsync();
             var doc = htmlParser.ParseDocument(bodystr);
 
             if (doc.QuerySelector(".bk-timetable-main") == null)
-                throw new BakaParseErrorNoTimetable();
+                throw new BakaParseErrorNoTimetable($"on url '{url}'");
 
             var a = doc.QuerySelectorAll(".day-item-hover[data-detail]")
                 .Select(x =>
@@ -174,7 +175,7 @@ namespace bakawatch.BakaSync
 
                 item.PeriodIndex = int.Parse(match.Groups[3].Value);
 
-                var weekday = match.Groups[1].Value switch
+                item.DayOfWeek = match.Groups[1].Value switch
                 {
                     "po" => DayOfWeek.Monday,
                     "út" => DayOfWeek.Tuesday,
@@ -196,17 +197,17 @@ namespace bakawatch.BakaSync
                     // yes i know this is like...
                     // not the greatest way to do it
 
-                    if (date.DayOfWeek != weekday)
+                    if (date.DayOfWeek != item.DayOfWeek)
                     {
                         date = date.AddYears(1);
                     }
 
-                    if (date.DayOfWeek != weekday)
+                    if (date.DayOfWeek != item.DayOfWeek)
                     {
                         date = date.AddYears(-2);
                     }
 
-                    if (date.DayOfWeek != weekday)
+                    if (date.DayOfWeek != item.DayOfWeek)
                     {
                         throw new Exception("i am retarded");
                     }
@@ -257,7 +258,8 @@ namespace bakawatch.BakaSync
             public DateOnly Date;
             public int PeriodIndex;
 
-            public OddEven? OddOrEvenWeek;
+            public DayOfWeek DayOfWeek;
+            public OddEven OddOrEvenWeek = OddEven.None;
 
             public PeriodInfoJSON JsonData;
             public string? SubjectShortName;
@@ -267,6 +269,6 @@ namespace bakawatch.BakaSync
             public string? TeacherFullNameNoDegree;
         }
 
-        public class BakaParseErrorNoTimetable : Exception;
+        public class BakaParseErrorNoTimetable(string message) : Exception(message);
     }
 }

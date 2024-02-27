@@ -27,5 +27,5 @@ namespace bakawatch.BakaSync
     }
 
     public class LivePeriodQuery : PeriodQuery<LivePeriod>;
-    public class PermanentPeriodQuery : PeriodQuery<LivePeriod>;
+    public class PermanentPeriodQuery : PeriodQuery<PermanentPeriod>;
 }
