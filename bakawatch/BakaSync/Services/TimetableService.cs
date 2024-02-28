@@ -90,6 +90,17 @@ namespace bakawatch.BakaSync.Services
             return new PermanentTimetable<PermanentPeriod>(periods, $"{BakaTimetableParser.Who.Class}={@class.Name}");
         }
 
+        public async Task<PermanentPeriod?> GetPermanentClassPeriod(BakaContext db, Class @class, DayOfWeek dayOfWeek, int periodIndex, OddEven oddEven) {
+            return await db.PermanentPeriodsWithIncludes
+                .Where(PermanentPeriodQuery.IsCurrent)
+                .Where(PermanentPeriodQuery.IsClassPeriod)
+                .Where(PermanentPeriodQuery.ByClass(@class))
+                .Where(x => x.DayOfWeek == dayOfWeek)
+                .Where(x => x.PeriodIndex == periodIndex)
+                .Where(x => x.OddOrEvenWeek == oddEven)
+                .SingleOrDefaultAsync();
+        }
+
         public async Task<LiveTimetable<LivePeriod>> GetTeacherTimetable(BakaContext db, TimetableWeek week, Teacher teacher) {
             var periods = await week.Days
                 .Where(x => x.Week.ID == week.ID)

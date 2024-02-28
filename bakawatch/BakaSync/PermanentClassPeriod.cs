@@ -20,9 +20,9 @@ namespace bakawatch.BakaSync
         public Class Class => Period.Groups.Single().Class;
         public ClassGroup Group => Period.Groups.Single();
 
-        public Subject? Subject => Period.Subject;
+        public Subject Subject => Period.Subject!;
         public Room? Room => Period.Room;
-        public Teacher? Teacher => Period.Teacher;
+        public Teacher Teacher => Period.Teacher!;
         public HashSet<ClassGroup> Groups => Period.Groups;
 
         public BakaTimetableParser.Who Who => Period.Who;

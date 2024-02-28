@@ -49,6 +49,7 @@ namespace bakawatch.BakaSync.Workers {
         }
 
         private async Task Worker(CancellationToken ct) {
+            await Task.Delay(1000);
         outer:
             while (!ct.IsCancellationRequested) {
                 using var scope = serviceScopeFactory.CreateAsyncScope();
