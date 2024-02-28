@@ -34,6 +34,21 @@ namespace bakawatch.BakaSync.Services
                 .Include(x => x.Days)
                 .FirstOrDefaultAsync();
 
+        public OddEven GetWeekOddness(DateOnly date)
+            => calendar.GetWeekOfYear(
+                                    date.ToDateTime(TimeOnly.MinValue),
+                                    CalendarWeekRule.FirstFullWeek,
+                                    DayOfWeek.Monday)
+                                  % 2 == 0
+                                  ? OddEven.Even
+                                  : OddEven.Odd;
+
+        public DateOnly NextWeekStart(DateOnly date)
+            => date.AddDays(
+                    -(date.DayOfWeek == 0 ? 7 : (int)date.DayOfWeek)
+                    + 1
+                ).AddDays(7);
+
         private async Task<TimetableWeek> CreateWeek(BakaContext db, DateOnly date) {
             var weekStart = date.AddDays(
                     // week starts with monday
@@ -44,13 +59,7 @@ namespace bakawatch.BakaSync.Services
             var week = new TimetableWeek() {
                 StartDate = weekStart,
                 EndDate = weekStart.AddDays(6),
-                OddEven = calendar.GetWeekOfYear(
-                                    weekStart.ToDateTime(TimeOnly.MinValue),
-                                    CalendarWeekRule.FirstFullWeek,
-                                    DayOfWeek.Monday)
-                                  % 2 == 0
-                                  ? OddEven.Even
-                                  : OddEven.Odd,
+                OddEven = GetWeekOddness(weekStart),
                 Days = new List<TimetableDay>(7)
             };
 
@@ -90,11 +99,11 @@ namespace bakawatch.BakaSync.Services
             return new PermanentTimetable<PermanentPeriod>(periods, $"{BakaTimetableParser.Who.Class}={@class.Name}");
         }
 
-        public async Task<PermanentPeriod?> GetPermanentClassPeriod(BakaContext db, Class @class, DayOfWeek dayOfWeek, int periodIndex, OddEven oddEven) {
+        public async Task<PermanentPeriod?> GetPermanentClassPeriod(BakaContext db, ClassGroup group, DayOfWeek dayOfWeek, int periodIndex, OddEven oddEven) {
             return await db.PermanentPeriodsWithIncludes
                 .Where(PermanentPeriodQuery.IsCurrent)
                 .Where(PermanentPeriodQuery.IsClassPeriod)
-                .Where(PermanentPeriodQuery.ByClass(@class))
+                .Where(PermanentPeriodQuery.ByGroup(group))
                 .Where(x => x.DayOfWeek == dayOfWeek)
                 .Where(x => x.PeriodIndex == periodIndex)
                 .Where(x => x.OddOrEvenWeek == oddEven)
@@ -141,6 +150,21 @@ namespace bakawatch.BakaSync.Services
                 query = query.Where(LivePeriodQuery.ByGroupName(group));
             }
             return query;
+        }
+
+        public async Task<LivePeriod?> GetClassPeriod(BakaContext db, ClassBakaId classId, DateOnly date, int periodIndex, string? group) {
+            IQueryable<LivePeriod> query = db.LivePeriodsWithIncludes
+                        .Where(LivePeriodQuery.IsCurrent)
+                        .Where(LivePeriodQuery.IsClassPeriod)
+                        .Where(LivePeriodQuery.ByClassBakaId(classId))
+                        .Where(x => x.Day.Date == date)
+                        .Where(x => x.PeriodIndex == periodIndex);
+            if (group == null) {
+                query = query.Where(LivePeriodQuery.ByDefaultGroup);
+            } else {
+                query = query.Where(LivePeriodQuery.ByGroupName(group));
+            }
+            return await query.SingleOrDefaultAsync();
         }
 
     }

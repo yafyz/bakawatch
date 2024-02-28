@@ -51,13 +51,16 @@ namespace bakawatch.DiscordBot.Services
             await syncOptimizationService.Add(@class.BakaId);
         }
 
-        public async Task<ClassPeriod?> GetReminderPeriod(SubjectReminder reminder) {
-            var p = await timetableService.GetClassPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
+        private IQueryable<IGrouping<TimetableDay, LivePeriod>> GetPeriodQueryForReminder(SubjectReminder reminder)
+            => timetableService.GetClassPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
                 .Where(x => x.Day.Date >= reminder.Date)
                 .Where(x => x.Subject != null
                          && x.Subject.ShortName == reminder.SubjectShortName)
                 .OrderBy(x => x.Day.Date)
-                .GroupBy(x => x.Day)
+                .GroupBy(x => x.Day);
+
+        public async Task<ClassPeriod?> GetReminderPeriod(SubjectReminder reminder) {
+            var p = await GetPeriodQueryForReminder(reminder)
                 .Skip(reminder.ToSkipCount)
                 .Select(x => x.First())
                 .FirstOrDefaultAsync();
@@ -65,9 +68,72 @@ namespace bakawatch.DiscordBot.Services
             return p != null ? new(p) : null;
         }
 
+        public async Task<(PermanentClassPeriod, DateOnly)?> GetReminderPermanentPeriod(SubjectReminder reminder) {
+            var query = GetPeriodQueryForReminder(reminder)
+                .Select(x => x.First());
+            var liveCount = await query.CountAsync();
+
+            var skipsRemaining = reminder.SkipsRemaining - liveCount;
+
+            if (skipsRemaining < 0)
+                throw new ArgumentException("reminder can finish from live periods");
+
+            var ptm = await timetableService.GetPermanentClassTimetable(
+                bakaContext,
+                await bakaContext.Classes.Where(x => x.BakaId.Value == reminder.ClassBakaId.Value).SingleAsync()
+            );
+
+            var doesEvenExist = ptm.Periods
+                    .Where(x => x.Subject?.ShortName == reminder.SubjectShortName)
+                    .Where(x => x.Groups.Any(x => x.Name == (reminder.GroupName ?? ClassGroup.DefaultGroupName)));
+
+            if (!doesEvenExist.Any())
+                return null;
+
+            var lastPeriod = await timetableService
+                .GetClassPeriods(bakaContext, reminder.ClassBakaId, reminder.GroupName)
+                .OrderBy(x => x.Day.Date)
+                .LastAsync();
+            var nextDate = timetableService.NextWeekStart(lastPeriod?.Day.Date ?? reminder.Date);
+
+            PermanentPeriod period = null!;
+
+            for(; skipsRemaining >= 0; nextDate = nextDate.AddDays(1)) {
+                var oddness = timetableService.GetWeekOddness(nextDate);
+
+                if (ptm.Periods.First().OddOrEvenWeek == OddEven.None)
+                    oddness = OddEven.None;
+
+                var p = ptm.Periods
+                    .Where(x => x.OddOrEvenWeek == oddness)
+                    .Where(x => x.DayOfWeek == nextDate.DayOfWeek)
+                    .Where(x => x.Subject?.ShortName == reminder.SubjectShortName)
+                    .Where(x => x.Groups.Any(x => x.Name == (reminder.GroupName ?? ClassGroup.DefaultGroupName)));
+
+                if (p.Any()) {
+                    skipsRemaining -= 1;
+                }
+
+                period = p.First();
+            }
+
+            nextDate = nextDate.AddDays(-1);
+
+            return (new(period), nextDate);
+        }
+
         public async Task UpdateReminderMessage(SubjectReminder reminder, bool firstUpdate = false) {
+            string dateString;
             var period = await GetReminderPeriod(reminder);
-            var dateString = period != null ? $"{period.PeriodIndex}. | {period.Day.Date}" : $"exact date not currently known";
+            if (period != null) {
+                dateString = $"{period.PeriodIndex}. | {period.Day.Date}";
+            } else {
+                var permPeriod = await GetReminderPermanentPeriod(reminder);
+                dateString = permPeriod switch {
+                    null => "exact date not currently known",
+                    var x => $"{x.Value.Item1.PeriodIndex}. | {x.Value.Item2}"
+                };
+            }
 
             var channel = (ITextChannel)reminder.Message.Channel.Resolve(discordClient);
 

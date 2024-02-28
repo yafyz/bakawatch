@@ -29,8 +29,14 @@ namespace bakawatch.BakaSync.Entities {
         Normal,
         Removed,
         Absent,
-        // not actually a real type from baka,
+
+        /* -- not actually a real types from baka -- */
+
         // all nullable properties will be null
-        Dropped
+        Dropped,
+
+        // RemovedInfo will maybe contain reason,
+        // everything else nullable will be null
+        Holiday
     }
 }

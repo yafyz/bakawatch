@@ -76,8 +76,11 @@ namespace bakawatch.DiscordBot.Workers {
                         .SingleAsync();
                     // i... dont know... anymore...
                     await db.Entry(tPeriod).Reference(x => x.Teacher).LoadAsync();
+                    // for a reason why, well, it throws that Teacher.BakaId#Teacher.BakaId.Value is null
+                    // when it definitely is not
                     period = new(tPeriod);
-                    var permPeriod = await tms.GetPermanentClassPeriod(db, period.Class, period.Day.Date.DayOfWeek, period.PeriodIndex, period.Day.Week.OddEven);
+
+                    var permPeriod = await tms.GetPermanentClassPeriod(db, period.Group, period.Day.Date.DayOfWeek, period.PeriodIndex, period.Day.Week.OddEven);
 
                     string text;
                     string? grouptext = period.Group.Name != ClassGroup.DefaultGroupName ? $":{period.Group.Name}" : null;
@@ -193,6 +196,7 @@ namespace bakawatch.DiscordBot.Workers {
                 PeriodType.Normal => $"{period.Subject?.ShortName} ({period.Teacher?.FullName}) {(period.ChangeInfo != null ? $"({period.ChangeInfo})" : null)}",
                 PeriodType.Removed => $"Removed ({period.RemovedInfo})",
                 PeriodType.Absent => $"Absent ({period.AbsenceInfoShort}, {period.AbsenceInfoReason})",
+                PeriodType.Holiday => $"Holiday ({period.RemovedInfo})",
                 _ => throw new InvalidOperationException()
             };
 

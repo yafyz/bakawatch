@@ -18,7 +18,7 @@ namespace bakawatch.BakaSync
 
         public static Expression<Func<T, bool>> ByClass(Class @class) => p => p.Groups.Any(x => x.Class == @class);
         public static Expression<Func<T, bool>> ByClassBakaId(ClassBakaId id) => p => p.Groups.Any(x => x.Class.BakaId.Value == id.Value);
-        public static Expression<Func<T, bool>> ByGroup(ClassGroup group) => p => p.Groups.Contains(group);
+        public static Expression<Func<T, bool>> ByGroup(ClassGroup group) => p => p.Groups.Any(x => x == group);
         public static Expression<Func<T, bool>> ByGroupName(string groupName) => p => p.Groups.Any(g => g.Name == groupName);
         public readonly static Expression<Func<T, bool>> ByDefaultGroup = p => p.Groups.Single().IsDefaultGroup;
 

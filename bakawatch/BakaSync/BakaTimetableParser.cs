@@ -63,8 +63,7 @@ namespace bakawatch.BakaSync
             public Dictionary<string, string> Rooms = new();
         }
 
-        public async Task<List<PeriodInfo>> Get(string what, Who who, When when = When.Actual)
-        {
+        public async Task<List<PeriodInfo>> Get(string what, Who who, When when = When.Actual) {
             string url = $"Timetable/Public/{when}/{who}/{what}";
             var res = await bakaApi.Request(() => new HttpRequestMessage(HttpMethod.Get, url));
             var bodystr = await res.Content.ReadAsStringAsync();
@@ -73,11 +72,9 @@ namespace bakawatch.BakaSync
             if (doc.QuerySelector(".bk-timetable-main") == null)
                 throw new BakaParseErrorNoTimetable($"on url '{url}'");
 
-            var a = doc.QuerySelectorAll(".day-item-hover[data-detail]")
-                .Select(x =>
-                {
-                    var p = new PeriodInfo()
-                    {
+            var periods = doc.QuerySelectorAll(".day-item-hover[data-detail]")
+                .Select(x => {
+                    var p = new PeriodInfo() {
                         JsonData = JsonSerializer.Deserialize<PeriodInfoJSON>(x.Attributes["data-detail"]!.Value)!,
                         SubjectShortName = x.QuerySelector("div.middle")?.InnerHtml.Trim(),
                         TeacherShortName = x.QuerySelector("div.bottom span")?.InnerHtml.Trim(),
@@ -139,19 +136,18 @@ namespace bakawatch.BakaSync
                         p.JsonData.InfoAbsentName = split[1];
                     }
 
-                    if (!string.IsNullOrEmpty(p.JsonData.teacher))
-                    {
+                    if (!string.IsNullOrEmpty(p.JsonData.teacher)) {
                         var nameSplit = p.JsonData.teacher.Split(" ");
                         var off = 0;
                         // degrees may be before and also after a name
                         while (off < nameSplit.Length && nameSplit[off].EndsWith('.'))
                             off++;
-                        
+
                         // teacher name may not actualy be a name
                         // and may contain dots and it will
                         // fuck everything because of degrees
                         // and non consistent name formats
-                        if (nameSplit.Length-off < 2) {
+                        if (nameSplit.Length - off < 2) {
                             // pray
                             p.TeacherFullNameNoDegree = p.JsonData.teacher;
                         } else {
@@ -164,19 +160,8 @@ namespace bakawatch.BakaSync
                     return p;
                 }).ToList();
 
-            var now = DateTime.Now;
-            foreach (var item in a)
-            {
-                var match = item.JsonData.type switch
-                {
-                    "atom" => Regex.Match(item.JsonData.subjecttext, "^.*? \\| (.*?) (.*?) \\| ([0-9]*?) .*?$"),
-                    _ => Regex.Match(item.JsonData.subjecttext, "(.*?) (.*?) \\| ([0-9]*?) .*?$")
-                };
-
-                item.PeriodIndex = int.Parse(match.Groups[3].Value);
-
-                item.DayOfWeek = match.Groups[1].Value switch
-                {
+            static void parseDate(PeriodInfo item, string szWeekDay, string szDate) {
+                item.DayOfWeek = szWeekDay switch {
                     "po" => DayOfWeek.Monday,
                     "út" => DayOfWeek.Tuesday,
                     "st" => DayOfWeek.Wednesday,
@@ -188,27 +173,23 @@ namespace bakawatch.BakaSync
                 };
 
                 // non permanent timetable
-                if (match.Groups[2].Value != "")
-                {
-                    var split = match.Groups[2].Value.Split(".");
+                if (szDate != "") {
+                    var split = szDate.Split(".");
                     var dateStr = $"{split[1]}/{split[0]}/{DateTime.Now.Year}";
                     var date = DateOnly.Parse(dateStr, CultureInfo.InvariantCulture);
 
                     // yes i know this is like...
                     // not the greatest way to do it
 
-                    if (date.DayOfWeek != item.DayOfWeek)
-                    {
+                    if (date.DayOfWeek != item.DayOfWeek) {
                         date = date.AddYears(1);
                     }
 
-                    if (date.DayOfWeek != item.DayOfWeek)
-                    {
+                    if (date.DayOfWeek != item.DayOfWeek) {
                         date = date.AddYears(-2);
                     }
 
-                    if (date.DayOfWeek != item.DayOfWeek)
-                    {
+                    if (date.DayOfWeek != item.DayOfWeek) {
                         throw new Exception("i am retarded");
                     }
 
@@ -216,7 +197,42 @@ namespace bakawatch.BakaSync
                 }
             }
 
-            return a;
+            var now = DateTime.Now;
+            foreach (var item in periods) {
+                var match = item.JsonData.type switch {
+                    "atom" => Regex.Match(item.JsonData.subjecttext, "^.*? \\| (.*?) (.*?) \\| ([0-9]*?) .*?$"),
+                    _ => Regex.Match(item.JsonData.subjecttext, "(.*?) (.*?) \\| ([0-9]*?) .*?$")
+                };
+
+                item.PeriodIndex = int.Parse(match.Groups[3].Value);
+
+                parseDate(item, match.Groups[1].Value, match.Groups[2].Value);
+            }
+
+            foreach (var item in doc.QuerySelectorAll(".bk-timetable-row")) {
+                var reason = item.QuerySelector(".day-off span");
+                if (reason == null)
+                    continue;
+
+                var weekday = item.QuerySelector(".bk-day-day");
+                var date = item.QuerySelector(".bk-day-date");
+
+                // our timetable ranges from 0-10 periods so 0-10 it is
+                for (int i = 0; i <= 10; i++) {
+                    var pi = new PeriodInfo() {
+                        IsHoliday = true,
+                        HolidayReason = reason.InnerHtml.Trim(),
+                        JsonData = new(),
+                        PeriodIndex = i
+                    };
+
+                    parseDate(pi, weekday.InnerHtml.Trim(), date.InnerHtml.Trim());
+
+                    periods.Add(pi);
+                }
+            }
+
+            return periods;
         }
 
         public enum When
@@ -267,6 +283,9 @@ namespace bakawatch.BakaSync
             public string? TeacherShortName;
 
             public string? TeacherFullNameNoDegree;
+
+            public bool IsHoliday;
+            public string? HolidayReason;
         }
 
         public class BakaParseErrorNoTimetable(string message) : Exception(message);

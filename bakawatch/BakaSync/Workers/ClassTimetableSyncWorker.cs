@@ -49,6 +49,10 @@ namespace bakawatch.BakaSync.Workers {
         }
 
         private async Task Worker(CancellationToken ct) {
+            // random not so random delay because
+            // when later checking against perma timetable
+            // it may not exist yet,
+            // and yeahh uhh, this is not great
             await Task.Delay(1000);
         outer:
             while (!ct.IsCancellationRequested) {

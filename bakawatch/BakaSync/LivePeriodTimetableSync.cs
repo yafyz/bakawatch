@@ -62,10 +62,11 @@ namespace bakawatch.BakaSync {
             var basePeriod = await ParseIntoBasePeriod(periodInfo);
 
             var period = new LivePeriod() {
-                Type = periodInfo.JsonData.type switch {
-                    "atom" => PeriodType.Normal,
-                    "removed" => PeriodType.Removed,
-                    "absent" => PeriodType.Absent,
+                Type = periodInfo switch {
+                    { JsonData.type: "atom" } => PeriodType.Normal,
+                    { JsonData.type: "removed" } => PeriodType.Removed,
+                    { JsonData.type: "absent" } => PeriodType.Absent,
+                    { IsHoliday: true } => PeriodType.Holiday,
                     _ => throw new InvalidDataException($"\"{periodInfo.JsonData.type}\" is not a valid period type")
                 },
                 Who = Who,
@@ -85,6 +86,9 @@ namespace bakawatch.BakaSync {
                 Day = day,
                 PeriodIndex = periodInfo.PeriodIndex
             };
+
+            if (period.Type == PeriodType.Holiday)
+                period.RemovedInfo = periodInfo.HolidayReason;
 
             return period;
         }
