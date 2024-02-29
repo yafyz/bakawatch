@@ -112,9 +112,8 @@ namespace bakawatch.DiscordBot.Services
 
                 if (p.Any()) {
                     skipsRemaining -= 1;
+                    period = p.First();
                 }
-
-                period = p.First();
             }
 
             nextDate = nextDate.AddDays(-1);
@@ -181,13 +180,29 @@ namespace bakawatch.DiscordBot.Services
                 .Where(x => x.Subject != null && x.Subject.ShortName == reminder.SubjectShortName)
                 .GroupBy(x => x.Day); // only skip once per day
 
-            var period = await GetReminderPeriod(reminder);
+            DateOnly periodDate = DateOnly.MaxValue;
+            int periodIndex = -1;
+            bool periodFound = false;
 
-            if (period != null && (reminder.LatestDate != period.Day.Date || reminder.LatestPeriodIndex != period.PeriodIndex)) {
-                reminder.LatestDate = period.Day.Date;
-                reminder.LatestPeriodIndex = period.PeriodIndex;
+            var period = await GetReminderPeriod(reminder);
+            if (period == null) {
+                var permPeriodData = await GetReminderPermanentPeriod(reminder);
+                if (permPeriodData.HasValue) {
+                    (var permPeriod, periodDate) = permPeriodData.Value;
+                    periodIndex = permPeriod.PeriodIndex;
+                    periodFound = true;
+                }
+            } else {
+                periodDate = period.Day.Date;
+                periodIndex = period.PeriodIndex;
+                periodFound = true;
+            }
+
+            if (periodFound && (reminder.LatestDate != periodDate || reminder.LatestPeriodIndex != periodIndex)) {
+                reminder.LatestDate = periodDate;
+                reminder.LatestPeriodIndex = periodIndex;
                 reminder.MessageUpdatePending = true;
-            } else if (period == null && (reminder.LatestDate != DateOnly.MaxValue || reminder.LatestPeriodIndex != -1)) {
+            } else if (!periodFound && (reminder.LatestDate != DateOnly.MaxValue || reminder.LatestPeriodIndex != -1)) {
                 reminder.LatestDate = DateOnly.MaxValue;
                 reminder.LatestPeriodIndex = -1;
                 reminder.MessageUpdatePending = true;
