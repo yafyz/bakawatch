@@ -99,10 +99,10 @@ namespace bakawatch.DiscordBot.Services
             PermanentPeriod period = null!;
 
             for(; skipsRemaining >= 0; nextDate = nextDate.AddDays(1)) {
-                var oddness = timetableService.GetWeekOddness(nextDate);
-
-                if (ptm.Periods.First().OddOrEvenWeek == OddEven.None)
-                    oddness = OddEven.None;
+                var oddness = ptm.Periods.First().OddOrEvenWeek switch {
+                    OddEven.None => OddEven.None,
+                    _ => timetableService.GetWeekOddness(nextDate)
+                };
 
                 var p = ptm.Periods
                     .Where(x => x.OddOrEvenWeek == oddness)
