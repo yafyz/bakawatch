@@ -31,7 +31,7 @@ namespace bakawatch.DiscordBot.Entities
         public bool Finished { get; set; }
 
         public DateTime Timestamp { get; set; } = DateTime.Now;
-
+        
         public DateOnly LatestDate { get; set; }
         public int LatestPeriodIndex { get; set; }
     }

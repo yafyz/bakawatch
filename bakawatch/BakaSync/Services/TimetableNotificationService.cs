@@ -27,6 +27,25 @@ namespace bakawatch.BakaSync.Services {
             => OnClassPeriodDropped?.Invoke(period);
 
 
+        public delegate void DelPermanentClassPeriodChanged(PermanentClassPeriod currentPermanentPeriod, PermanentClassPeriod oldPermanentPeriod);
+        public event DelPermanentClassPeriodChanged? OnPermanentClassPeriodChanged;
+
+        internal void FirePermanentClassPeriodChanged(PermanentClassPeriod currentPermanentPeriod, PermanentClassPeriod oldPermanentPeriod)
+            => OnPermanentClassPeriodChanged?.Invoke(currentPermanentPeriod, oldPermanentPeriod);
+
+        public delegate void DelPermanentClassPeriodAdded(PermanentClassPeriod PermanentPeriod);
+        public event DelPermanentClassPeriodAdded? OnPermanentClassPeriodAdded;
+
+        internal void FirePermanentClassPeriodAdded(PermanentClassPeriod PermanentPeriod)
+            => OnPermanentClassPeriodAdded?.Invoke(PermanentPeriod);
+
+        public delegate void DelPermanentClassPeriodDropped(PermanentClassPeriod PermanentPeriod);
+        public event DelPermanentClassPeriodDropped? OnPermanentClassPeriodDropped;
+
+        internal void FirePermanentClassPeriodDropped(PermanentClassPeriod PermanentPeriod)
+            => OnPermanentClassPeriodDropped?.Invoke(PermanentPeriod);
+
+
         public delegate void DelTeacherPeriodChanged(TeacherPeriod currentPeriod, TeacherPeriod oldPeriod);
         public event DelTeacherPeriodChanged? OnTeacherPeriodChanged;
 

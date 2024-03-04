@@ -13,12 +13,12 @@ using System.Threading.Tasks;
 using static bakawatch.BakaSync.BakaAPI;
 
 namespace bakawatch.BakaSync.Workers {
-    internal class ClassTimetableSyncWorker(
+    internal class PermanentClassTimetableSyncWorker(
         IdSyncService idSyncService,
         TimetableService timetableService,
         TimetableNotificationService timetableNotificationService,
         BakaTimetableParser bakaTimetableParser,
-        ILogger<ClassTimetableSyncWorker> logger,
+        ILogger<PermanentClassTimetableSyncWorker> logger,
         SyncOptimizationService syncOptimizationService,
         IServiceScopeFactory serviceScopeFactory
     )
@@ -36,35 +36,25 @@ namespace bakawatch.BakaSync.Workers {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
             await idSyncService.IsInitialized;
 
-            logger.Log(LogLevel.Information, $"Starting {nameof(ClassTimetableSyncWorker)}");
+            logger.Log(LogLevel.Information, $"Starting {nameof(PermanentClassTimetableSyncWorker)}");
 
             await Worker(stoppingToken);
         }
 
-        private async Task DoParse(BakaContext db, ClassLiveTimetableSync sync, TimetableWeek week, BakaTimetableParser.When when, CancellationToken ct) {
+        private async Task DoParse(BakaContext db, ClassPermanentTimetableSync sync, BakaTimetableParser.When when, CancellationToken ct) {
             var ptm = await bakaTimetableParser.Get(sync.Class.BakaId.Value, BakaTimetableParser.Who.Class, when);
-            var tm = await timetableService.GetClassTimetable(db, week, sync.Class);
+            var tm = await timetableService.GetPermanentClassTimetable(db, sync.Class);
 
             await sync.ParseAndUpdateTimetable(ptm, tm, collisionMap[sync.Class.BakaId], ct);
         }
 
         private async Task Worker(CancellationToken ct) {
-            // random not so random delay because
-            // when later checking against perma timetable
-            // it may not exist yet,
-            // and yeahh uhh, this is not great
-            await Task.Delay(1000);
         outer:
             while (!ct.IsCancellationRequested) {
                 using var scope = serviceScopeFactory.CreateAsyncScope();
                 using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
 
                 Class[] classes = await db.Classes.ToArrayAsync();
-
-                TimetableWeek week = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now));
-                TimetableWeek nextWeek = await timetableService.GetOrCreateWeek(DateOnly.FromDateTime(DateTime.Now).AddDays(7));
-
-                var optSyncPending = syncOptimizationService.TeacherClassSyncPending;
 
                 try {
                     foreach (var @class in classes) {
@@ -83,11 +73,10 @@ namespace bakawatch.BakaSync.Workers {
                             collisionMap.Add(@class.BakaId, []);
                         }
 
-                        var sync = scope.ServiceProvider.GetRequiredService<ClassLiveTimetableSync>();
+                        var sync = scope.ServiceProvider.GetRequiredService<ClassPermanentTimetableSync>();
                         sync.Class = @class;
 
-                        await DoParse(db, sync, week, BakaTimetableParser.When.Actual, ct);
-                        await DoParse(db, sync, nextWeek, BakaTimetableParser.When.Next, ct);
+                        await DoParse(db, sync, BakaTimetableParser.When.Permanent, ct);
                         
                         await db.SaveChangesAsync(CancellationToken.None);
                     }
@@ -96,10 +85,7 @@ namespace bakawatch.BakaSync.Workers {
                 } catch (BakaTimetableParser.BakaParseErrorNoTimetable ex) {
                     logger.LogError(ex, "bad response from baka");
                 }
-
-                if (optSyncPending)
-                    await syncOptimizationService.OnClassesSynced();
-
+                
                 await TakeBreak(ct);
             }
         }

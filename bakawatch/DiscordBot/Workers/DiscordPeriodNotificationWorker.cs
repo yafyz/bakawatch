@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Channels;
 using bakawatch.BakaSync;
+using Microsoft.EntityFrameworkCore;
 
 namespace bakawatch.DiscordBot.Workers {
     internal class DiscordPeriodNotificationWorker(
@@ -33,6 +34,7 @@ namespace bakawatch.DiscordBot.Workers {
             messageBuffer = new();
             timetableNotificationService.OnClassPeriodChanged += OnClassPeriodChanged;
             timetableNotificationService.OnClassPeriodDropped += OnClassPeriodDropped;
+            timetableNotificationService.OnClassPeriodAdded += OnClassPeriodAdded;
 
             timetableNotificationService.OnTeacherPeriodChanged += OnTeacherPeriodChanged;
             
@@ -44,6 +46,60 @@ namespace bakawatch.DiscordBot.Workers {
             }
 
             logger.Log(LogLevel.Information, $"{nameof(DiscordPeriodNotificationWorker)} stopped");
+        }
+
+        private void OnClassPeriodAdded(ClassPeriod period) {
+            // this code is peak
+            Task.Run(async () => {
+                // delay cuz i gotta refetch period but it wont be saved yet yeeeeeeeeeeeeee
+                await Task.Delay(1000);
+                try {
+                    using var scope = serviceScopeFactory.CreateAsyncScope();
+                    var periodNotifService = scope.ServiceProvider.GetRequiredService<DiscordPeriodNotificationService>();
+                    var channelService = scope.ServiceProvider.GetRequiredService<DiscordLocalService>();
+                    using var db = scope.ServiceProvider.GetRequiredService<BakaContext>();
+                    var tms = scope.ServiceProvider.GetRequiredService<TimetableService>();
+
+                    var subscriptions = periodNotifService.GetSubscriptionsFor(period.Group);
+                    if (!await subscriptions.AnyAsync())
+                        return;
+
+                    var p = period.Period;
+                    var tPeriod = await db.LivePeriods
+                        .Include(x => x.Subject)
+                        .Include(x => x.Room)
+                        .Include(x => x.Day)
+                        .Include(x => x.Day.Week)
+                        .Include(x => x.Groups)
+                        .ThenInclude(x => x.Class)
+                        .Where(x => x.ID == p.ID)
+                        .SingleAsync();
+                    // i... dont know... anymore...
+                    await db.Entry(tPeriod).Reference(x => x.Teacher).LoadAsync();
+                    // for a reason why, well, it throws that Teacher.BakaId#Teacher.BakaId.Value is null
+                    // when it definitely is not
+                    period = new(tPeriod);
+
+                    var permPeriod = await tms.GetPermanentClassPeriod(db, period.Group, period.Day.Date.DayOfWeek, period.PeriodIndex, period.Day.Week.OddEven);
+
+                    string text;
+                    string? grouptext = period.Group.Name != ClassGroup.DefaultGroupName ? $":{period.Group.Name}" : null;
+                    if (permPeriod == null) {
+                        text = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | Added {FormatPeriod(period.Period)}";
+                    } else if (!permPeriod.CompareWithLive(period.Period)) {
+                        text = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(permPeriod)} => {FormatPeriod(period.Period)}";
+                    } else {
+                        return;
+                    }
+
+                    await foreach (var subscription in subscriptions) {
+                        var chan = (ITextChannel)subscription.Channel.Resolve(discordClient);
+                        messageBuffer.Add((chan, text));
+                    }
+                } catch (Exception ex) {
+                    logger.LogError(ex, $"Exception in {nameof(OnClassPeriodAdded)}");
+                }
+            });
         }
 
         private void OnTeacherPeriodChanged(TeacherPeriod currentPeriod, TeacherPeriod oldPeriod) {
@@ -140,7 +196,11 @@ namespace bakawatch.DiscordBot.Workers {
                 PeriodType.Normal => $"{period.Subject?.ShortName} ({period.Teacher?.FullName}) {(period.ChangeInfo != null ? $"({period.ChangeInfo})" : null)}",
                 PeriodType.Removed => $"Removed ({period.RemovedInfo})",
                 PeriodType.Absent => $"Absent ({period.AbsenceInfoShort}, {period.AbsenceInfoReason})",
+                PeriodType.Holiday => $"Holiday ({period.RemovedInfo})",
                 _ => throw new InvalidOperationException()
             };
+
+        private string FormatPeriod(PermanentPeriod period)
+            => $"{period.Subject?.ShortName} ({period.Teacher?.FullName})";
     }
 }

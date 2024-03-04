@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 
 namespace bakawatch.BakaSync.Services
 {
-    internal class TeacherTimetableSync(
+    internal class TeacherLiveTimetableSync(
         BakaContext _bakaContext,
         TimetableNotificationService timetableNotificationService,
-        ILogger<TeacherTimetableSync> _logger
+        ILogger<TeacherLiveTimetableSync> _logger
     )
         : LivePeriodTimetableSync
     {
@@ -25,12 +25,12 @@ namespace bakawatch.BakaSync.Services
 
         protected override IQueryable<LivePeriod> LivePeriods
             => bakaContext.LivePeriodsWithIncludes
-                .Where(LivePeriod.IsTeacherPeriod)
-                .Where(LivePeriod.IsCurrent);
+                .Where(LivePeriodQuery.IsTeacherPeriod)
+                .Where(LivePeriodQuery.IsCurrent);
         protected override IQueryable<LivePeriod> PeriodHistory
             => bakaContext.LivePeriodsWithIncludes
-                .Where(LivePeriod.IsTeacherPeriod)
-                .Where(LivePeriod.IsHistorical);
+                .Where(LivePeriodQuery.IsTeacherPeriod)
+                .Where(LivePeriodQuery.IsHistorical);
         protected override BakaTimetableParser.Who Who => BakaTimetableParser.Who.Teacher;
 
         protected override Task FirePeriodChanged(LivePeriod _newPeriod, LivePeriod _oldPeriod) {
