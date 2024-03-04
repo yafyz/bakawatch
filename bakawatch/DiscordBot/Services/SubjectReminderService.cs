@@ -73,7 +73,7 @@ namespace bakawatch.DiscordBot.Services
                 .Select(x => x.First());
             var liveCount = await query.CountAsync();
 
-            var skipsRemaining = reminder.SkipsRemaining - liveCount;
+            var skipsRemaining = reminder.ToSkipCount - liveCount;
 
             if (skipsRemaining < 0)
                 throw new ArgumentException("reminder can finish from live periods");
