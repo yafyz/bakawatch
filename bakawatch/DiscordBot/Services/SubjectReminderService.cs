@@ -122,17 +122,10 @@ namespace bakawatch.DiscordBot.Services
         }
 
         public async Task UpdateReminderMessage(SubjectReminder reminder, bool firstUpdate = false) {
-            string dateString;
-            var period = await GetReminderPeriod(reminder);
-            if (period != null) {
-                dateString = $"{period.PeriodIndex}. | {period.Day.Date}";
-            } else {
-                var permPeriod = await GetReminderPermanentPeriod(reminder);
-                dateString = permPeriod switch {
-                    null => "exact date not currently known",
-                    var x => $"{x.Value.Item1.PeriodIndex}. | {x.Value.Item2}"
-                };
-            }
+            string dateString = reminder.LatestPeriodIndex switch {
+                -1 => "exact date not currently known",
+                _ => $"{reminder.LatestPeriodIndex}. | {reminder.LatestDate}"
+            };
 
             var channel = (ITextChannel)reminder.Message.Channel.Resolve(discordClient);
 
