@@ -47,6 +47,7 @@ namespace bakawatch.DiscordBot.Services
             };
 
             discordContext.SubjectReminders.Add(reminder);
+            await UpdateReminder(reminder, true);
             await UpdateReminderMessage(reminder, true);
             await syncOptimizationService.Add(@class.BakaId);
         }
