@@ -85,9 +85,9 @@ namespace bakawatch.DiscordBot.Workers {
                     string text;
                     string? grouptext = period.Group.Name != ClassGroup.DefaultGroupName ? $":{period.Group.Name}" : null;
                     if (permPeriod == null) {
-                        text = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | Added {FormatPeriod(period.Period)}";
+                        text = $"{period.Day.Date.DayOfWeek} {period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | Added {FormatPeriod(period.Period)}";
                     } else if (!permPeriod.CompareWithLive(period.Period)) {
-                        text = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(permPeriod)} => {FormatPeriod(period.Period)}";
+                        text = $"{period.Day.Date.DayOfWeek} {period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(permPeriod)} => {FormatPeriod(period.Period)}";
                     } else {
                         return;
                     }
@@ -112,7 +112,7 @@ namespace bakawatch.DiscordBot.Workers {
                     foreach (var group in currentPeriod.Groups) {
                         await foreach(var sub in periodNotifService.GetSubscriptionsFor(group)) {
                             string? grouptext = group.Name != ClassGroup.DefaultGroupName ? $":{group.Name}" : null;
-                            var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {group.Class.Name}{grouptext} | Absent collision {FormatPeriod(currentPeriod.Period)}";
+                            var msg = $"{currentPeriod.Day.Date.DayOfWeek} {currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {group.Class.Name}{grouptext} | Absent collision {FormatPeriod(currentPeriod.Period)}";
                             messageBuffer.Add(((ITextChannel)sub.Channel.Resolve(discordClient), msg));
                         }
                     }
@@ -168,7 +168,7 @@ namespace bakawatch.DiscordBot.Workers {
 
                     string? grouptext = group.Name != ClassGroup.DefaultGroupName ? $":{group.Name}" : null;
 
-                    var msg = $"{currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {currentPeriod.Class.Name}{grouptext} | {FormatPeriod(oldPeriod.Period)} => {FormatPeriod(currentPeriod.Period)}";
+                    var msg = $"{currentPeriod.Day.Date.DayOfWeek} {currentPeriod.Day.Date} | {currentPeriod.PeriodIndex}. | {currentPeriod.Class.Name}{grouptext} | {FormatPeriod(oldPeriod.Period)} => {FormatPeriod(currentPeriod.Period)}";
                     messageBuffer.Add((channel, msg));
                 }
             });
@@ -185,7 +185,7 @@ namespace bakawatch.DiscordBot.Workers {
 
                     string? grouptext = period.Group.Name != ClassGroup.DefaultGroupName ? $":{period.Group.Name}" : null;
 
-                    var msg = $"{period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(period.Period)} => Dropped";
+                    var msg = $"{period.Day.Date.DayOfWeek} {period.Day.Date} | {period.PeriodIndex}. | {period.Class.Name}{grouptext} | {FormatPeriod(period.Period)} => Dropped";
                     messageBuffer.Add((channel, msg));
                 }
             });

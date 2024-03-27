@@ -47,7 +47,7 @@ namespace bakawatch.DiscordBot.Services
             };
 
             discordContext.SubjectReminders.Add(reminder);
-            await UpdateReminder(reminder, true);
+            await UpdateReminder(reminder);
             await UpdateReminderMessage(reminder, true);
             await syncOptimizationService.Add(@class.BakaId);
         }
@@ -125,7 +125,7 @@ namespace bakawatch.DiscordBot.Services
         public async Task UpdateReminderMessage(SubjectReminder reminder, bool firstUpdate = false) {
             string dateString = reminder.LatestPeriodIndex switch {
                 -1 => "exact date not currently known",
-                _ => $"{reminder.LatestPeriodIndex}. | {reminder.LatestDate}"
+                _ => $"{reminder.LatestPeriodIndex}. | {reminder.LatestDate.DayOfWeek} | {reminder.LatestDate}"
             };
 
             var channel = (ITextChannel)reminder.Message.Channel.Resolve(discordClient);
