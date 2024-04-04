@@ -211,7 +211,6 @@ namespace bakawatch.DiscordBot.Services
                 reminder.MessageUpdatePending = true;
             }
 
-            discordContext.Update(reminder);
             await discordContext.SaveChangesAsync();
         }
 
